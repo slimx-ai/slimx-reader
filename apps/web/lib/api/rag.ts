@@ -1,4 +1,6 @@
 import type {
+  AskRequest,
+  AskResponse,
   DocumentChunksResponse,
   IndexingJob,
   ModelOption,
@@ -6,6 +8,13 @@ import type {
   RagHealth,
 } from '../types';
 import { apiFetch } from './http';
+
+export async function askOverDocuments(payload: AskRequest): Promise<AskResponse> {
+  return apiFetch<AskResponse>('/api/rag/ask', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
 
 export async function getRagHealth(): Promise<RagHealth> {
   return apiFetch<RagHealth>('/api/rag/health');

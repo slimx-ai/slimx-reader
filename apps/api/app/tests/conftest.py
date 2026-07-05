@@ -13,6 +13,7 @@ os.environ.setdefault("READER_ALLOW_CLOUD_PROVIDERS", "false")
 
 from app.core.config import get_settings  # noqa: E402
 from app.db import session as db_session  # noqa: E402
+from app.services.rag import factory as rag_factory  # noqa: E402
 
 
 def make_pdf(text: str = "Hello SlimX Reader") -> bytes:
@@ -58,3 +59,38 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClie
 
     get_settings.cache_clear()
     db_session.reset_engine()
+
+
+@pytest.fixture
+def rag_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
+    """RAG enabled with no real service (fake adapter). Auto-worker off so tests drive the queue."""
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    monkeypatch.setenv("READER_DATA_DIR", str(data_dir))
+    monkeypatch.setenv("READER_ENABLE_RAG", "true")
+    monkeypatch.setenv("READER_SLIMX_RAG_URL", "")
+    monkeypatch.setenv("READER_ENABLE_INDEXING_WORKER", "false")
+    monkeypatch.setenv("READER_ALLOW_CLOUD_PROVIDERS", "false")
+    get_settings.cache_clear()
+    db_session.reset_engine()
+    rag_factory.reset_rag_adapter_cache()
+
+    from app.main import create_app
+
+    with TestClient(create_app()) as test_client:
+        yield test_client
+
+    get_settings.cache_clear()
+    db_session.reset_engine()
+    rag_factory.reset_rag_adapter_cache()
+
+
+def drive_indexing_worker() -> None:
+    """Drain the indexing queue synchronously (for the worker-off rag_client fixture)."""
+    from sqlmodel import Session
+
+    from app.services.rag.indexing_service import run_next_indexing_job
+
+    with Session(db_session.get_engine()) as session:
+        while run_next_indexing_job(session):
+            pass

@@ -6,6 +6,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from app.models.indexing_job import IndexingJob
+from app.models.retrieval_run import RetrievedChunk
 
 
 class IndexingJobRead(BaseModel):
@@ -76,3 +77,69 @@ class RagHealthResponse(BaseModel):
     service_url: str | None
     vector_backend: str | None
     auth_enabled: bool | None
+
+
+class RetrieveRequest(BaseModel):
+    question: str
+    document_ids: list[str] | None = None
+    top_k: int | None = None
+    min_score: float | None = None
+
+
+class AskRequest(RetrieveRequest):
+    generate: bool = True
+
+
+class RetrievedChunkView(BaseModel):
+    rag_chunk_id: str
+    document_id: str | None
+    rank: int
+    score: float
+    text: str
+    page: int | None
+    section: str | None
+    citation: str | None
+    metadata: dict[str, Any]
+
+    @classmethod
+    def from_model(cls, chunk: RetrievedChunk) -> RetrievedChunkView:
+        meta = chunk.chunk_metadata or {}
+        return cls(
+            rag_chunk_id=chunk.rag_chunk_id or "",
+            document_id=chunk.document_id,
+            rank=chunk.rank,
+            score=chunk.score,
+            text=chunk.text,
+            page=chunk.page,
+            section=chunk.section,
+            citation=meta.get("citation"),
+            metadata=meta,
+        )
+
+
+class RetrievalRunView(BaseModel):
+    id: str
+    question: str
+    status: str
+    top_k: int
+    min_score: float
+    chunk_count: int
+    elapsed_ms: int | None
+    embedding_provider: str | None
+    embedding_model: str | None
+    vector_backend: str | None
+    answer: str | None
+    model_ref: str | None
+    context_snapshot: dict[str, Any] | None
+    chunks: list[RetrievedChunkView]
+
+
+class AskResponse(BaseModel):
+    run_id: str
+    status: str
+    answer: str | None
+    model_ref: str | None
+    degraded_reason: str | None
+    note: str | None
+    context_used: dict[str, Any]
+    chunks: list[RetrievedChunkView]

@@ -634,6 +634,183 @@ mark.annotation-ask {
   padding: 24px;
 }
 
+/* --- Ask / citations / context / notes --- */
+.ask-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ask-input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.86rem;
+  resize: vertical;
+}
+.ask-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+.ask-control {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.ask-control input {
+  width: 64px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 6px;
+  background: var(--surface);
+  color: var(--text);
+}
+.ask-controls .primary-button {
+  margin-left: auto;
+}
+.ask-result {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ask-degraded {
+  border: 1px solid var(--line);
+  border-left: 3px solid #c98a1a;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 0.84rem;
+}
+.ask-answer {
+  background: var(--surface-hover);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.ask-answer-text {
+  margin: 0 0 6px;
+  white-space: pre-wrap;
+  font-size: 0.9rem;
+}
+.ask-answer-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ask-model {
+  font-size: 0.72rem;
+  margin-right: auto;
+}
+.ask-context summary {
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.ask-section-title {
+  margin: 8px 0 6px;
+  font-size: 0.82rem;
+}
+.context-used {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 12px;
+  font-size: 0.8rem;
+  margin: 6px 0 0;
+}
+.context-used-row {
+  display: contents;
+}
+.context-used dt {
+  color: var(--muted);
+}
+.context-used dd {
+  margin: 0;
+}
+.context-used-note {
+  font-size: 0.82rem;
+}
+.citations-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.citation-item {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--surface);
+}
+.citation-item-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.76rem;
+}
+.citation-item-title {
+  font-weight: 600;
+}
+.citation-item-score {
+  margin-left: auto;
+}
+.citation-item-low {
+  color: #a06a12;
+  border: 1px solid rgba(160, 106, 18, 0.4);
+  border-radius: 999px;
+  padding: 0 6px;
+  font-size: 0.68rem;
+}
+.citation-item-text {
+  margin: 6px 0;
+  font-size: 0.82rem;
+  white-space: pre-wrap;
+  max-height: 120px;
+  overflow: auto;
+}
+.citation-item-actions {
+  display: flex;
+  gap: 12px;
+}
+.notes-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.note-item {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--surface);
+}
+.note-item-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.76rem;
+}
+.note-item-kind {
+  font-weight: 600;
+}
+.note-item-source {
+  margin-right: auto;
+}
+.note-item-body {
+  margin: 6px 0 0;
+  font-size: 0.84rem;
+  white-space: pre-wrap;
+}
+
 /* ===== PDF viewer (ported from ControlRoom, MIT) ===== */
 .pdf-viewer {
   display: flex;

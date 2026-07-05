@@ -56,6 +56,8 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     oai_base_url: str | None = None
     oai_api_key: str = "EMPTY"
+    model_timeout_seconds: float = 180.0
+    answer_max_tokens: int = 700
 
     # --- Privacy ---
     allow_cloud_providers: bool = False

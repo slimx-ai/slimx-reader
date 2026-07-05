@@ -4,13 +4,16 @@ import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import {
   createAnnotation,
+  createNote,
   deleteAnnotation,
   deleteDocument,
+  deleteNote,
   documentFileUrl,
   getDocument,
   getDocumentContent,
   getSettings,
   listAnnotations,
+  listNotes,
 } from '../../lib/api';
 import { classifyUploadError, type DocumentError } from '../../lib/documentErrors';
 import type {
@@ -18,24 +21,29 @@ import type {
   AnnotationCreate,
   Document,
   DocumentContent,
+  Note,
   ReaderSettings,
+  RetrievedChunkView,
 } from '../../lib/types';
 import { AnnotationsPanel } from '../annotations/AnnotationsPanel';
 import { ErrorCard } from '../common/ErrorCard';
 import { LocalCloudBadge } from '../common/LocalCloudBadge';
 import { Spinner } from '../common/Spinner';
+import { AskPanel } from '../rag/AskPanel';
 import { ChunkInspector } from '../rag/ChunkInspector';
 import { IndexStatusBadge } from '../rag/IndexStatusBadge';
+import { NotesPanel } from '../rag/NotesPanel';
 import { MarkdownReader } from './MarkdownReader';
 import { PdfViewer } from './PdfViewer';
 import { SelectionToolbar } from './SelectionToolbar';
 
-type Tab = 'annotations' | 'chunks' | 'info';
+type Tab = 'annotations' | 'ask' | 'chunks' | 'notes' | 'info';
 
 export function DocumentReader({ documentId }: { documentId: string }) {
   const [doc, setDoc] = useState<Document | null>(null);
   const [content, setContent] = useState<DocumentContent | null>(null);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
   const [settings, setSettings] = useState<ReaderSettings | null>(null);
   const [error, setError] = useState<DocumentError | null>(null);
   const [loading, setLoading] = useState(true);
@@ -47,15 +55,17 @@ export function DocumentReader({ documentId }: { documentId: string }) {
     setLoading(true);
     setError(null);
     try {
-      const [d, c, a, s] = await Promise.all([
+      const [d, c, a, n, s] = await Promise.all([
         getDocument(documentId),
         getDocumentContent(documentId),
         listAnnotations(documentId),
+        listNotes(documentId).catch(() => []),
         getSettings().catch(() => null),
       ]);
       setDoc(d);
       setContent(c);
       setAnnotations(a);
+      setNotes(n);
       setSettings(s);
       setView(d.source_type === 'pdf' ? 'document' : 'text');
     } catch (err) {
@@ -88,6 +98,40 @@ export function DocumentReader({ documentId }: { documentId: string }) {
     } catch {
       // Non-fatal: leave the annotation in place; the user can retry.
     }
+  }, []);
+
+  const handleSaveEvidence = useCallback(
+    async (chunk: RetrievedChunkView, runId: string) => {
+      const body = `${chunk.citation ? `${chunk.citation}\n` : ''}${chunk.text}`;
+      const note = await createNote({
+        document_id: documentId,
+        kind: 'evidence',
+        body,
+        retrieval_run_id: runId,
+      });
+      setNotes((prev) => [note, ...prev]);
+      setTab('notes');
+    },
+    [documentId],
+  );
+
+  const handleSaveAnswer = useCallback(
+    async (answer: string, runId: string) => {
+      const note = await createNote({
+        document_id: documentId,
+        kind: 'note',
+        body: answer,
+        retrieval_run_id: runId,
+      });
+      setNotes((prev) => [note, ...prev]);
+      setTab('notes');
+    },
+    [documentId],
+  );
+
+  const handleDeleteNote = useCallback(async (id: string) => {
+    await deleteNote(id);
+    setNotes((prev) => prev.filter((n) => n.id !== id));
   }, []);
 
   const handleDeleteDocument = useCallback(async () => {
@@ -207,11 +251,29 @@ export function DocumentReader({ documentId }: { documentId: string }) {
             <button
               type="button"
               role="tab"
+              aria-selected={tab === 'ask'}
+              className={tab === 'ask' ? 'active' : ''}
+              onClick={() => setTab('ask')}
+            >
+              Ask
+            </button>
+            <button
+              type="button"
+              role="tab"
               aria-selected={tab === 'chunks'}
               className={tab === 'chunks' ? 'active' : ''}
               onClick={() => setTab('chunks')}
             >
               Chunks
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'notes'}
+              className={tab === 'notes' ? 'active' : ''}
+              onClick={() => setTab('notes')}
+            >
+              Notes
             </button>
             <button
               type="button"
@@ -226,8 +288,17 @@ export function DocumentReader({ documentId }: { documentId: string }) {
           <div className="reader-panel-body">
             {tab === 'annotations' ? (
               <AnnotationsPanel annotations={annotations} onDelete={handleDelete} />
+            ) : tab === 'ask' ? (
+              <AskPanel
+                documentId={documentId}
+                indexed={doc.indexing_status === 'ready'}
+                onSaveEvidence={handleSaveEvidence}
+                onSaveAnswer={handleSaveAnswer}
+              />
             ) : tab === 'chunks' ? (
               <ChunkInspector documentId={documentId} refreshKey={chunkRefreshKey} />
+            ) : tab === 'notes' ? (
+              <NotesPanel notes={notes} onDelete={handleDeleteNote} />
             ) : (
               <dl className="reader-info">
                 <dt>Filename</dt>

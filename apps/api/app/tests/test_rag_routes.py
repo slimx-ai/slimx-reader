@@ -1,44 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Iterator
-from pathlib import Path
-
-import pytest
 from fastapi.testclient import TestClient
-from sqlmodel import Session
 
-from app.core.config import get_settings
-from app.db import session as db_session
-from app.services.rag import factory
-from app.services.rag.indexing_service import run_next_indexing_job
-
-
-@pytest.fixture
-def rag_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
-    # RAG enabled with no real service (fake adapter). Auto-worker off so the test drives the queue.
-    data_dir = tmp_path / "data"
-    data_dir.mkdir()
-    monkeypatch.setenv("READER_DATA_DIR", str(data_dir))
-    monkeypatch.setenv("READER_ENABLE_RAG", "true")
-    monkeypatch.setenv("READER_SLIMX_RAG_URL", "")
-    monkeypatch.setenv("READER_ENABLE_INDEXING_WORKER", "false")
-    monkeypatch.setenv("READER_ALLOW_CLOUD_PROVIDERS", "false")
-    get_settings.cache_clear()
-    db_session.reset_engine()
-    factory.reset_rag_adapter_cache()
-    from app.main import create_app
-
-    with TestClient(create_app()) as client:
-        yield client
-    get_settings.cache_clear()
-    db_session.reset_engine()
-    factory.reset_rag_adapter_cache()
-
-
-def _drive_worker() -> None:
-    with Session(db_session.get_engine()) as session:
-        while run_next_indexing_job(session):
-            pass
+from app.tests.conftest import drive_indexing_worker as _drive_worker
 
 
 def _upload(client: TestClient) -> str:

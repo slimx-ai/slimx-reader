@@ -146,6 +146,69 @@ export type ModelsHealth = {
   default_model: { ref: string; available: boolean; cloud_enabled: boolean };
 };
 
+export type RetrievedChunkView = {
+  rag_chunk_id: string;
+  document_id: string | null;
+  rank: number;
+  score: number;
+  text: string;
+  page: number | null;
+  section: string | null;
+  citation: string | null;
+  metadata: Record<string, unknown>;
+};
+
+export type ContextUsed = {
+  chunks_used?: number;
+  top_k?: number;
+  min_score?: number;
+  chars_sent?: number;
+  embedding_provider?: string | null;
+  embedding_model?: string | null;
+  vector_backend?: string | null;
+  elapsed_ms?: number | null;
+};
+
+export type AskResponse = {
+  run_id: string;
+  status: string;
+  answer: string | null;
+  model_ref: string | null;
+  degraded_reason: string | null;
+  note: string | null;
+  context_used: ContextUsed;
+  chunks: RetrievedChunkView[];
+};
+
+export type AskRequest = {
+  question: string;
+  document_ids?: string[] | null;
+  top_k?: number | null;
+  min_score?: number | null;
+  generate?: boolean;
+};
+
+export type NoteKind = 'note' | 'evidence' | 'summary' | 'explanation' | 'flashcard';
+
+export type Note = {
+  id: string;
+  document_id: string;
+  annotation_id: string | null;
+  retrieval_run_id: string | null;
+  kind: NoteKind | string;
+  body: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type NoteCreate = {
+  document_id: string;
+  kind?: NoteKind | string;
+  body: string;
+  annotation_id?: string | null;
+  retrieval_run_id?: string | null;
+};
+
 export type ReaderSettings = {
   enable_rag: boolean;
   slimx_rag_url: string | null;
