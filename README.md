@@ -10,11 +10,17 @@ powered by [SlimX](https://github.com/slimx-ai/slimx) for model execution and
 
 </div>
 
-> **Status:** v0.1. Screenshots are placeholders (marked _TODO_) until the UI is captured.
+> **Status:** v0.1 — [`v0.1.0` release](https://github.com/slimx-ai/slimx-reader/releases/tag/v0.1.0).
 
-<!-- TODO(screenshot): library + reader with a PDF, a highlight, and a grounded answer with citations. -->
-_TODO: screenshots — the reading canvas, the selection toolbar, and a grounded answer with its
-"context used" panel and citations._
+<p align="center">
+  <img src="docs/images/ask-answer.png" alt="A grounded answer with citations and a context-used panel, next to the highlighted source" width="900">
+</p>
+
+<p align="center">
+  <img src="docs/images/reader-selection.png" alt="Selecting text raises a Highlight / Comment / Copy toolbar" width="440">
+  &nbsp;
+  <img src="docs/images/library.png" alt="The local document library" width="440">
+</p>
 
 ---
 
