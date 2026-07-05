@@ -19,14 +19,18 @@ venv/
 build/
 dist/
 
-# Local data (keep the dirs via .gitkeep, ignore their contents)
+# Local data (keep the root dirs via .gitkeep, ignore their contents). Runtime data can also land
+# under apps/*/data depending on the working directory — ignore those entirely.
 data/documents/*
 data/exports/*
 data/indexes/*
 !data/documents/.gitkeep
 !data/exports/.gitkeep
 !data/indexes/.gitkeep
+apps/*/data/
 *.db
+*.sqlite
+*.sqlite3
 *.sqlite
 *.sqlite3
 

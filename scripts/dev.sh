@@ -18,6 +18,8 @@ WEB_PORT="${READER_WEB_PORT:-3000}"
 # Wire the web app to this API port and allow its origin through CORS (both used by the app below).
 export NEXT_PUBLIC_API_BASE_URL="${NEXT_PUBLIC_API_BASE_URL:-http://localhost:${API_PORT}}"
 export READER_CORS_ORIGINS="${READER_CORS_ORIGINS:-[\"http://localhost:${WEB_PORT}\",\"http://127.0.0.1:${WEB_PORT}\"]}"
+# Keep all runtime data in the repo-root data/ dir (gitignored) regardless of the API's cwd.
+export READER_DATA_DIR="${READER_DATA_DIR:-$ROOT/data}"
 
 port_busy() {
   if command -v ss >/dev/null 2>&1; then
