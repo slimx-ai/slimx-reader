@@ -1,0 +1,42 @@
+# Node / Next.js
+node_modules/
+apps/web/.next/
+apps/web/out/
+apps/web/public/pdf.worker.min.mjs
+*.tsbuildinfo
+npm-debug.log*
+.eslintcache
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+
+# Local data (keep the dirs via .gitkeep, ignore their contents)
+data/documents/*
+data/exports/*
+data/indexes/*
+!data/documents/.gitkeep
+!data/exports/.gitkeep
+!data/indexes/.gitkeep
+*.db
+*.sqlite
+*.sqlite3
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
