@@ -5,6 +5,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends
 
 from app.core.config import Settings, get_settings
+from app.services.rag.factory import describe_rag_status
 
 router = APIRouter(tags=["health"])
 
@@ -18,12 +19,17 @@ def health() -> dict[str, Any]:
 
 @router.get("/health/deep")
 def health_deep(settings: SettingsDep) -> dict[str, Any]:
-    """Shallow-by-default deep probe. RAG/model readiness is filled in by later phases."""
+    """Deep probe: reports the SlimX-RAG adapter selection and cloud posture."""
+    rag = describe_rag_status(settings)
     return {
         "status": "ok",
         "rag": {
-            "enabled": settings.enable_rag,
-            "url_configured": bool(settings.slimx_rag_url),
+            "enabled": rag.enabled,
+            "url_configured": rag.url_configured,
+            "adapter_kind": rag.adapter_kind,
+            "real_available": rag.real_available,
+            "fallback_reason": rag.fallback_reason,
+            "vector_backend": rag.vector_backend,
         },
         "cloud_providers_enabled": settings.allow_cloud_providers,
     }

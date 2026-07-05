@@ -581,6 +581,59 @@ mark.annotation-ask {
   font-size: 0.85rem;
 }
 
+/* --- Index status + chunk inspector --- */
+.index-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.index-status-error {
+  font-size: 0.72rem;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chunk-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.chunk-item {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: var(--surface);
+}
+.chunk-item-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.76rem;
+}
+.chunk-item-ordinal {
+  font-weight: 600;
+}
+.chunk-item-text {
+  margin: 6px 0;
+  font-size: 0.84rem;
+  white-space: pre-wrap;
+  max-height: 180px;
+  overflow: auto;
+}
+.chunk-item-actions {
+  display: flex;
+  gap: 12px;
+}
+.chunk-inspector-loading {
+  display: flex;
+  justify-content: center;
+  padding: 24px;
+}
+
 /* ===== PDF viewer (ported from ControlRoom, MIT) ===== */
 .pdf-viewer {
   display: flex;

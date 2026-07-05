@@ -10,10 +10,17 @@ from app.api import range_serving
 from app.api.document_errors import ErrorCode, reader_error
 from app.core.config import Settings, get_settings
 from app.db.session import get_session
-from app.models.document import Document
+from app.models.document import Document, DocumentIndexingStatus
 from app.schemas.documents import DocumentContent, DocumentList, DocumentRead
+from app.schemas.rag import DocumentChunksResponse, DocumentChunkView, IndexingJobRead
 from app.services.document_extraction import is_supported_document
 from app.services.documents import create_document
+from app.services.rag.factory import describe_rag_status, get_rag_adapter
+from app.services.rag.indexing_service import (
+    active_job_for_document,
+    enqueue_index,
+    latest_job_for_document,
+)
 from app.storage import object_keys
 from app.storage.local_storage import LocalObjectStorage, StorageObjectMissing, get_storage
 
@@ -81,6 +88,11 @@ async def upload_document(
     doc = create_document(
         session, storage, filename=filename, mime_type=file.content_type, data=data
     )
+    # Kick off indexing in the background (the worker drains the queue). If SlimX-RAG is down the
+    # job parks as waiting_for_rag; the document is fully usable for reading/annotation meanwhile.
+    if settings.enable_rag:
+        enqueue_index(session, document=doc)
+        session.refresh(doc)
     return DocumentRead.from_model(doc)
 
 
@@ -165,11 +177,63 @@ def get_document_content(
 
 
 @router.delete("/{document_id}", status_code=204)
-def delete_document(session: SessionDep, storage: StorageDep, document_id: str) -> Response:
+def delete_document(
+    session: SessionDep, settings: SettingsDep, storage: StorageDep, document_id: str
+) -> Response:
     doc = _load_document(session, document_id)
+    # Best-effort remove from the SlimX-RAG index (never raises; the DB row is the source of truth).
+    if settings.enable_rag:
+        get_rag_adapter(settings).delete_document(document_id=doc.id)
     # DB-level ON DELETE CASCADE removes annotations, indexing_jobs, and notes; retrieved_chunks
-    # are SET NULL. (Best-effort SlimX-RAG index deletion is wired in Phase 3.)
+    # are SET NULL.
     storage.delete_prefix(object_keys.document_prefix(doc.id))
     session.delete(doc)
     session.commit()
     return Response(status_code=204)
+
+
+@router.post("/{document_id}/index", response_model=IndexingJobRead, status_code=202)
+def index_document(session: SessionDep, settings: SettingsDep, document_id: str) -> IndexingJobRead:
+    doc = _load_document(session, document_id)
+    if not settings.enable_rag:
+        raise reader_error(
+            404,
+            ErrorCode.RAG_DISABLED,
+            "SlimX-RAG is disabled. Set READER_ENABLE_RAG=true to index documents.",
+        )
+    existing = active_job_for_document(session, doc.id)
+    if existing is not None:
+        return IndexingJobRead.from_model(existing)  # idempotent: already queued/running
+    job = enqueue_index(session, document=doc)
+    return IndexingJobRead.from_model(job)
+
+
+@router.get("/{document_id}/indexing-job", response_model=IndexingJobRead | None)
+def get_indexing_job(session: SessionDep, document_id: str) -> IndexingJobRead | None:
+    _load_document(session, document_id)
+    job = latest_job_for_document(session, document_id)
+    return IndexingJobRead.from_model(job) if job else None
+
+
+@router.get("/{document_id}/chunks", response_model=DocumentChunksResponse)
+def list_document_chunks(
+    session: SessionDep, settings: SettingsDep, document_id: str
+) -> DocumentChunksResponse:
+    doc = _load_document(session, document_id)
+    if doc.indexing_status != DocumentIndexingStatus.READY:
+        return DocumentChunksResponse(
+            document_id=doc.id, status="not_indexed", chunk_count=0, chunks=[]
+        )
+    # describe_rag_status keeps us from listing fake-corpus chunks while a real service is down.
+    rag_status = describe_rag_status(settings)
+    if rag_status.url_configured and not rag_status.real_available:
+        return DocumentChunksResponse(
+            document_id=doc.id, status="unavailable", chunk_count=0, chunks=[]
+        )
+    chunks = get_rag_adapter(settings).list_document_chunks(document_id=doc.id)
+    return DocumentChunksResponse(
+        document_id=doc.id,
+        status="ready",
+        chunk_count=len(chunks),
+        chunks=[DocumentChunkView(**c.model_dump()) for c in chunks],
+    )

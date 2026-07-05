@@ -24,11 +24,13 @@ import { AnnotationsPanel } from '../annotations/AnnotationsPanel';
 import { ErrorCard } from '../common/ErrorCard';
 import { LocalCloudBadge } from '../common/LocalCloudBadge';
 import { Spinner } from '../common/Spinner';
+import { ChunkInspector } from '../rag/ChunkInspector';
+import { IndexStatusBadge } from '../rag/IndexStatusBadge';
 import { MarkdownReader } from './MarkdownReader';
 import { PdfViewer } from './PdfViewer';
 import { SelectionToolbar } from './SelectionToolbar';
 
-type Tab = 'annotations' | 'info';
+type Tab = 'annotations' | 'chunks' | 'info';
 
 export function DocumentReader({ documentId }: { documentId: string }) {
   const [doc, setDoc] = useState<Document | null>(null);
@@ -39,6 +41,7 @@ export function DocumentReader({ documentId }: { documentId: string }) {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'document' | 'text'>('document');
   const [tab, setTab] = useState<Tab>('annotations');
+  const [chunkRefreshKey, setChunkRefreshKey] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -131,6 +134,22 @@ export function DocumentReader({ documentId }: { documentId: string }) {
           </h1>
         </div>
         <div className="reader-topbar-right">
+          {settings ? (
+            <IndexStatusBadge
+              documentId={documentId}
+              status={doc.indexing_status}
+              ragEnabled={settings.enable_rag}
+              onStatusChange={(status) => {
+                setDoc((prev) =>
+                  prev
+                    ? { ...prev, indexing_status: status as Document['indexing_status'] }
+                    : prev,
+                );
+                setChunkRefreshKey((k) => k + 1);
+                if (status === 'ready') setTab('chunks');
+              }}
+            />
+          ) : null}
           {settings ? <LocalCloudBadge cloudEnabled={settings.allow_cloud_providers} /> : null}
           {isPdf ? (
             <div className="reader-view-toggle" role="tablist" aria-label="View mode">
@@ -188,6 +207,15 @@ export function DocumentReader({ documentId }: { documentId: string }) {
             <button
               type="button"
               role="tab"
+              aria-selected={tab === 'chunks'}
+              className={tab === 'chunks' ? 'active' : ''}
+              onClick={() => setTab('chunks')}
+            >
+              Chunks
+            </button>
+            <button
+              type="button"
+              role="tab"
               aria-selected={tab === 'info'}
               className={tab === 'info' ? 'active' : ''}
               onClick={() => setTab('info')}
@@ -198,6 +226,8 @@ export function DocumentReader({ documentId }: { documentId: string }) {
           <div className="reader-panel-body">
             {tab === 'annotations' ? (
               <AnnotationsPanel annotations={annotations} onDelete={handleDelete} />
+            ) : tab === 'chunks' ? (
+              <ChunkInspector documentId={documentId} refreshKey={chunkRefreshKey} />
             ) : (
               <dl className="reader-info">
                 <dt>Filename</dt>

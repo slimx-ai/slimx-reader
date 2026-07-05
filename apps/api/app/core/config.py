@@ -42,6 +42,13 @@ class Settings(BaseSettings):
     rag_default_top_k: int = 8
     rag_min_score: float = 0.0
     rag_stale_job_after_seconds: int = 3600
+    # The SlimX-RAG service owns the embedder; this is informational, used only to classify
+    # cloud egress. The default local setup uses SlimX-RAG's offline `hf` MiniLM embedder.
+    rag_embedding_provider: str = "hf"
+    indexing_worker_idle_seconds: float = 2.0
+    # Auto-start the background indexing worker in the app lifespan (disabled in some tests that
+    # drive the queue deterministically).
+    enable_indexing_worker: bool = True
 
     # --- Model execution (SlimX) ---
     default_provider: str = "ollama"

@@ -82,6 +82,70 @@ export type DocumentContent = {
   available: boolean;
 };
 
+export type IndexingJob = {
+  id: string;
+  document_id: string;
+  status: DocumentIndexingStatus | string;
+  attempt: number;
+  error_reason: string | null;
+  chunk_count: number | null;
+  embedding_provider: string | null;
+  embedding_model: string | null;
+  vector_backend: string | null;
+  rag_index_ref: string | null;
+  trace: Record<string, unknown> | null;
+  elapsed_ms: number | null;
+  created_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+};
+
+export type DocumentChunk = {
+  rag_chunk_id: string;
+  ordinal: number;
+  text: string;
+  page: number | null;
+  section: string | null;
+  start_offset: number | null;
+  end_offset: number | null;
+  section_path: string[] | null;
+  parent_id: string | null;
+  page_type: string | null;
+  token_count: number | null;
+};
+
+export type DocumentChunksResponse = {
+  document_id: string;
+  status: 'ready' | 'not_indexed' | 'unavailable' | string;
+  chunk_count: number;
+  chunks: DocumentChunk[];
+};
+
+export type RagHealth = {
+  enabled: boolean;
+  url_configured: boolean;
+  adapter_kind: string;
+  real_available: boolean;
+  fallback_reason: string | null;
+  service_url: string | null;
+  vector_backend: string | null;
+  auth_enabled: boolean | null;
+};
+
+export type ModelOption = { provider: string; model: string; ref: string };
+
+export type ModelsHealth = {
+  slimx: { available: boolean; version: string | null };
+  ollama: { reachable: boolean; base_url: string; models: string[] };
+  rag: {
+    enabled: boolean;
+    real_available: boolean;
+    vector_backend: string | null;
+    fallback_reason: string | null;
+  };
+  default_model: { ref: string; available: boolean; cloud_enabled: boolean };
+};
+
 export type ReaderSettings = {
   enable_rag: boolean;
   slimx_rag_url: string | null;
