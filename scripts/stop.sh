@@ -4,6 +4,14 @@ set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+# Read the same ports dev.sh used (from .env, unless already set in the shell).
+if [ -f "$ROOT/.env" ]; then
+  set -a
+  # shellcheck disable=SC1090,SC1091
+  . "$ROOT/.env"
+  set +a
+fi
+
 for port in "${READER_WEB_PORT:-3000}" "${READER_API_PORT:-8000}"; do
   pids="$(lsof -ti tcp:"$port" 2>/dev/null || true)"
   if [ -n "$pids" ]; then

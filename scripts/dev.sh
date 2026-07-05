@@ -13,6 +13,15 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 API_DIR="$ROOT/apps/api"
 WEB_DIR="$ROOT/apps/web"
 
+# Load the repo-root .env (if present) so everything there — ports, model settings, RAG URL, cloud
+# opt-in — takes effect for BOTH the API and the web app. Values already set in your shell win.
+if [ -f "$ROOT/.env" ]; then
+  set -a
+  # shellcheck disable=SC1090,SC1091
+  . "$ROOT/.env"
+  set +a
+fi
+
 API_PORT="${READER_API_PORT:-8000}"
 WEB_PORT="${READER_WEB_PORT:-3000}"
 # Wire the web app to this API port and allow its origin through CORS (both used by the app below).
