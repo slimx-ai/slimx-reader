@@ -4,7 +4,7 @@ set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-for port in 3000 8000; do
+for port in "${READER_WEB_PORT:-3000}" "${READER_API_PORT:-8000}"; do
   pids="$(lsof -ti tcp:"$port" 2>/dev/null || true)"
   if [ -n "$pids" ]; then
     echo "Stopping process on :$port"

@@ -28,6 +28,24 @@ cd apps/web && npm install
 npm run typecheck && npm run lint && npm run test
 ```
 
+### End-to-end tests
+
+Playwright e2e is a live-stack integration test, so it is **not** part of push CI. Run it against a
+running stack (start it, then point Playwright at it):
+
+```bash
+./scripts/dev.sh                        # start API + web (see port note below)
+npx playwright install chromium         # first time only
+cd apps/web && npm run e2e
+```
+
+If ports 3000/8000 are already in use, run the app on other ports and tell Playwright where it is:
+
+```bash
+READER_WEB_PORT=3999 READER_API_PORT=8999 ./scripts/dev.sh
+READER_WEB_URL=http://localhost:3999 npm run e2e   # from apps/web
+```
+
 ## Pull requests
 
 1. Fork and branch from `main` (`feat/...`, `fix/...`, `docs/...`).
