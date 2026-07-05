@@ -450,6 +450,10 @@ button {
   margin: 0;
   word-break: break-word;
 }
+.reader-info-export {
+  display: flex;
+  gap: 8px;
+}
 
 /* --- Markdown / text reader --- */
 .reader-markdown {

@@ -1,0 +1,54 @@
+# Full SlimX Reader stack in Docker: web + API + SlimX-RAG.
+#
+#   docker compose up --build
+#   open http://localhost:3000
+#
+# For grounded answers, run a local model on the host (Ollama) — the API reaches it via
+# host.docker.internal. Or run `docker compose --profile ollama -f docker-compose.rag.yml up`.
+#
+# Prefer the lighter native loop for development: `./scripts/dev.sh`.
+
+services:
+  api:
+    build: ./apps/api
+    ports:
+      - "8000:8000"
+    environment:
+      READER_ENABLE_RAG: ${READER_ENABLE_RAG:-true}
+      READER_SLIMX_RAG_URL: ${READER_SLIMX_RAG_URL:-http://slimx-rag:8080}
+      READER_SLIMX_RAG_AUTH_TOKEN: ${READER_SLIMX_RAG_AUTH_TOKEN:-}
+      READER_ALLOW_CLOUD_PROVIDERS: ${READER_ALLOW_CLOUD_PROVIDERS:-false}
+      READER_OLLAMA_BASE_URL: ${READER_OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+    volumes:
+      - reader-data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - slimx-rag
+
+  web:
+    build:
+      context: ./apps/web
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+  slimx-rag:
+    image: ${SLIMX_RAG_IMAGE:-ghcr.io/slimx-ai/slimx-rag:latest}
+    command: ["slimx-rag", "serve", "--host", "0.0.0.0", "--port", "8080"]
+    environment:
+      RAG_EMBED_PROVIDER: hf
+      RAG_HF_MODEL: sentence-transformers/all-MiniLM-L6-v2
+      RAG_INDEX_BACKEND: local
+      RAG_INDEX_PATH: /data/index.jsonl
+      RAG_STATE_PATH: /data/state.json
+      RAG_AUTH_TOKEN: ${READER_SLIMX_RAG_AUTH_TOKEN:-}
+    volumes:
+      - slimx-rag-data:/data
+
+volumes:
+  reader-data:
+  slimx-rag-data:

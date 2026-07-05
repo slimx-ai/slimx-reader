@@ -6,7 +6,6 @@ build-backend = "hatchling.build"
 name = "slimx-reader-api"
 version = "0.1.0"
 description = "Local-first document reader API for SlimX Reader (FastAPI backend)"
-readme = "../../README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 dependencies = [

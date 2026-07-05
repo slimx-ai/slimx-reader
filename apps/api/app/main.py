@@ -12,6 +12,7 @@ from app import __version__
 from app.api import (
     routes_annotations,
     routes_documents,
+    routes_export,
     routes_health,
     routes_models,
     routes_notes,
@@ -69,6 +70,7 @@ def create_app() -> FastAPI:
     app.include_router(routes_rag.router)
     app.include_router(routes_rag.runs_router)
     app.include_router(routes_notes.router)
+    app.include_router(routes_export.router)
     app.include_router(routes_models.router)
     return app
 

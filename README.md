@@ -10,8 +10,11 @@ powered by [SlimX](https://github.com/slimx-ai/slimx) for model execution and
 
 </div>
 
-> **Status:** v0.1 in active development. This README is filled in as the phases land.
-> Screenshots are placeholders (marked _TODO_) until the UI is captured.
+> **Status:** v0.1. Screenshots are placeholders (marked _TODO_) until the UI is captured.
+
+<!-- TODO(screenshot): library + reader with a PDF, a highlight, and a grounded answer with citations. -->
+_TODO: screenshots — the reading canvas, the selection toolbar, and a grounded answer with its
+"context used" panel and citations._
 
 ---
 
@@ -54,21 +57,47 @@ model client. See [docs/architecture.md](docs/architecture.md) and
 
 ## Quick start
 
-> Full setup (with SlimX-RAG + Ollama) lands in Phase 5. Minimal dev loop:
+**One command (bootstraps the venv + npm deps, runs API on :8000 and web on :3000):**
 
 ```bash
-# Backend (FastAPI, :8000)
-cd apps/api && python -m venv .venv && . .venv/bin/activate
-pip install -e '.[dev]'
-uvicorn app.main:app --reload --port 8000
-
-# Frontend (Next.js, :3000) — in another terminal
-cd apps/web && npm install && npm run dev
+cp .env.example .env
+./scripts/dev.sh
 ```
 
-Open http://localhost:3000. To enable indexing and grounded Q&A, start SlimX-RAG
-(`docker compose -f docker-compose.rag.yml up`) and Ollama — see
-[docs/local-models.md](docs/local-models.md).
+Open http://localhost:3000. You can already **read and annotate** documents — indexing and Q&A
+light up once SlimX-RAG (and a model) are running.
+
+**Enable indexing + grounded Q&A:**
+
+```bash
+# 1. Start SlimX-RAG (offline hf embeddings + local vector backend) on :8080
+docker compose -f docker-compose.rag.yml up
+./scripts/check-rag.sh          # verify it's ready
+
+# 2. Start a local model for answers (Ollama)
+ollama serve
+ollama pull llama3.2:3b         # or set READER_DEFAULT_MODEL to a model you have
+```
+
+**Or run the whole stack in Docker:**
+
+```bash
+docker compose up --build       # web + API + SlimX-RAG
+```
+
+### Index a document and ask a question
+
+1. Drop a **PDF / DOCX / Markdown / TXT / code** file onto the library (or click to choose).
+2. Open it — PDFs render in the viewer; text/markdown render inline.
+3. Select text to **Highlight**, **Comment**, or **Copy**. Annotations persist across reloads.
+4. Click **Index** (top bar). Watch the status go `uploaded → … → ready`; inspect the produced
+   chunks in the **Chunks** tab.
+5. In the **Ask** tab, ask a question. You get a grounded answer with a **context-used** panel and
+   **citations** (page/section). Save a chunk as **evidence** or the answer as a **note**.
+6. Export your annotations, notes, and citations from the **Info** tab (Markdown or JSON).
+
+Manual dev without Docker (two terminals) is also fine — see
+[docs/local-models.md](docs/local-models.md) and [docs/rag-integration.md](docs/rag-integration.md).
 
 ## Known limitations (v0.1)
 

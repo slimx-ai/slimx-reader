@@ -40,3 +40,7 @@ data/indexes/*
 .idea/
 .vscode/
 *.swp
+
+# Playwright
+apps/web/test-results/
+apps/web/playwright-report/

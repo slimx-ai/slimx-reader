@@ -9,6 +9,8 @@ import {
   deleteDocument,
   deleteNote,
   documentFileUrl,
+  exportJson,
+  exportMarkdown,
   getDocument,
   getDocumentContent,
   getSettings,
@@ -315,6 +317,23 @@ export function DocumentReader({ documentId }: { documentId: string }) {
                 ) : null}
                 <dt>Indexing</dt>
                 <dd>{doc.indexing_status}</dd>
+                <dt>Export</dt>
+                <dd className="reader-info-export">
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => void exportMarkdown(documentId)}
+                  >
+                    Markdown
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => void exportJson(documentId)}
+                  >
+                    JSON
+                  </button>
+                </dd>
               </dl>
             )}
           </div>
