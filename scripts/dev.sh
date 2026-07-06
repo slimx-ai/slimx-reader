@@ -39,14 +39,43 @@ port_busy() {
     return 1
   fi
 }
-for p in "$API_PORT:API" "$WEB_PORT:web"; do
-  port="${p%%:*}"; name="${p##*:}"
-  if port_busy "$port"; then
-    echo "✖ Port $port ($name) is already in use."
+# A busy port is fine when it's OUR healthy service (e.g. the web app survived but the API died —
+# re-running dev.sh then just restarts the missing half). A foreign occupant still aborts.
+is_our_api() {
+  command -v curl >/dev/null 2>&1 || return 1
+  curl -sf -m 2 "http://localhost:$1/health" 2>/dev/null | grep -q "slimx-reader-api"
+}
+is_our_web() {
+  command -v curl >/dev/null 2>&1 || return 1
+  curl -sf -m 2 "http://localhost:$1/" 2>/dev/null | grep -qi "SlimX Reader"
+}
+
+START_API=1
+START_WEB=1
+if port_busy "$API_PORT"; then
+  if is_our_api "$API_PORT"; then
+    echo "==> API already running on :$API_PORT — leaving it alone."
+    START_API=0
+  else
+    echo "✖ Port $API_PORT (API) is in use by something else."
     echo "  Run on other ports, e.g.:  READER_WEB_PORT=3999 READER_API_PORT=8999 ./scripts/dev.sh"
     exit 1
   fi
-done
+fi
+if port_busy "$WEB_PORT"; then
+  if is_our_web "$WEB_PORT"; then
+    echo "==> Web already running on :$WEB_PORT — leaving it alone."
+    START_WEB=0
+  else
+    echo "✖ Port $WEB_PORT (web) is in use by something else."
+    echo "  Run on other ports, e.g.:  READER_WEB_PORT=3999 READER_API_PORT=8999 ./scripts/dev.sh"
+    exit 1
+  fi
+fi
+if [ "$START_API" = 0 ] && [ "$START_WEB" = 0 ]; then
+  echo "SlimX Reader is already fully running (web :${WEB_PORT}, API :${API_PORT}). Nothing to do."
+  exit 0
+fi
 
 echo "==> Preparing backend (apps/api)"
 if [ ! -d "$API_DIR/.venv" ]; then
@@ -62,11 +91,17 @@ fi
 # Ensure the local pdf.js worker is present (normally copied by the predev hook).
 (cd "$WEB_DIR" && node scripts/copy-pdf-worker.mjs)
 
-echo "==> Starting API (:${API_PORT}) and web (:${WEB_PORT})"
-( cd "$API_DIR" && ./.venv/bin/uvicorn app.main:app --reload --port "$API_PORT" ) &
-API_PID=$!
-( cd "$WEB_DIR" && npx next dev -H 0.0.0.0 -p "$WEB_PORT" ) &
-WEB_PID=$!
+echo "==> Starting$([ "$START_API" = 1 ] && echo " API (:${API_PORT})")$([ "$START_WEB" = 1 ] && echo " web (:${WEB_PORT})")"
+API_PID=""
+WEB_PID=""
+if [ "$START_API" = 1 ]; then
+  ( cd "$API_DIR" && ./.venv/bin/uvicorn app.main:app --reload --port "$API_PORT" ) &
+  API_PID=$!
+fi
+if [ "$START_WEB" = 1 ]; then
+  ( cd "$WEB_DIR" && npx next dev -H 0.0.0.0 -p "$WEB_PORT" ) &
+  WEB_PID=$!
+fi
 
 kill_port() {
   local pids
@@ -76,9 +111,10 @@ kill_port() {
 cleanup() {
   trap - EXIT INT TERM
   echo; echo "Stopping…"
-  kill "$API_PID" "$WEB_PID" 2>/dev/null || true
-  # `next dev` and `uvicorn --reload` spawn children that outlive the wrapper PID; reap by port.
-  kill_port "$WEB_PORT"; kill_port "$API_PORT"
+  # Only stop what THIS run started — a pre-existing healthy service stays up.
+  # (`next dev` / `uvicorn --reload` spawn children that outlive the wrapper PID; reap by port.)
+  if [ -n "$API_PID" ]; then kill "$API_PID" 2>/dev/null || true; kill_port "$API_PORT"; fi
+  if [ -n "$WEB_PID" ]; then kill "$WEB_PID" 2>/dev/null || true; kill_port "$WEB_PORT"; fi
 }
 trap cleanup EXIT INT TERM
 
