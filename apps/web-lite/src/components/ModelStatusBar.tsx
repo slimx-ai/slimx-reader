@@ -66,7 +66,11 @@ export function ModelStatusBar() {
       <span className="model-status-item muted">
         Answers:{' '}
         {webGpu === false ? (
-          <strong>unavailable (no WebGPU)</strong>
+          <strong>
+            {!window.isSecureContext
+              ? 'needs HTTPS — browsers hide WebGPU on insecure origins'
+              : 'unavailable (no WebGPU)'}
+          </strong>
         ) : llm.state === 'ready' ? (
           <strong>{llm.model}</strong>
         ) : llm.state === 'loading' ? (

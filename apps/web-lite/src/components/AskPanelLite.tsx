@@ -141,7 +141,9 @@ export function AskPanel({
       {llm.state !== 'ready' ? (
         <div className="ask-model-hint muted">
           {webGpu === false
-            ? 'This browser has no WebGPU, so answers are retrieval-only (citations still work).'
+            ? !window.isSecureContext
+              ? 'This page is on plain HTTP, which hides WebGPU — open it over HTTPS (or localhost) for generated answers. Citations still work.'
+              : 'This browser has no WebGPU, so answers are retrieval-only (citations still work).'
             : llm.state === 'loading'
               ? `Downloading answer model… ${Math.round((llm.progress ?? 0) * 100)}%`
               : 'Retrieval-only until the answer model is loaded.'}
