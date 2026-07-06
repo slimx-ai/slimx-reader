@@ -56,5 +56,29 @@ jobs:
       - name: Unit tests
         run: npm run test
 
+  web-lite:
+    # web-lite imports apps/web sources directly; its typecheck compiles them too, so this job is
+    # what catches an apps/web refactor breaking the browser-only build.
+    name: Web Lite (typecheck · tests · build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web-lite
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/web-lite/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Typecheck (includes shared apps/web sources)
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm run test
+      - name: Build (static site)
+        run: npm run build
+
 # Playwright e2e is a live-stack integration test (it needs the API + web running), so it is not
 # part of push CI. Run it locally against a running stack — see CONTRIBUTING.md.
