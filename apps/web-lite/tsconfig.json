@@ -15,7 +15,13 @@
     "types": ["vite/client", "vitest/globals", "node"],
     "paths": {
       "@web/*": ["../web/*"],
-      "next/link": ["./src/shims/next-link.tsx"]
+      "next/link": ["./src/shims/next-link.tsx"],
+      "react": ["./node_modules/@types/react"],
+      "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime"],
+      "react-dom/client": ["./node_modules/@types/react-dom/client"],
+      "pdfjs-dist": ["./node_modules/pdfjs-dist"],
+      "marked": ["./node_modules/marked"],
+      "dompurify": ["./node_modules/dompurify"]
     }
   },
   "include": [
