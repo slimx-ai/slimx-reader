@@ -83,6 +83,18 @@ function pageRects(anchor: Annotation['pdf_anchor'], pageNumber: number): Normal
 }
 
 /**
+ * Whether an annotation may be located on `pageNumber` by quote search. Only when it carries NO
+ * stored geometry at all (rect-anchored annotations know exactly where they live), and only on its
+ * own recorded page — otherwise a short quote like "agent" matches text on every page and paints
+ * spurious boxes far from the real anchor (which also mis-anchors the gutter pins/cards).
+ * Legacy annotations without a recorded page may match anywhere.
+ */
+export function quoteFallbackEligible(ann: Annotation, pageNumber: number): boolean {
+  if (ann.pdf_anchor?.rects?.length) return false;
+  return ann.page == null || ann.page === pageNumber;
+}
+
+/**
  * Paint saved annotations for ONE PDF page into its overlay layer. Rect-anchored annotations paint
  * directly from stored geometry; everything else falls back to locating the quote against the page's
  * text layer. Idempotent: clears the overlay first so a zoom re-render never duplicates rects.
@@ -117,7 +129,7 @@ export function renderPdfPageOverlay(
           fill: ann.type === 'highlight' ? highlightColor(ann.color).pdf : null,
         },
       );
-    } else {
+    } else if (quoteFallbackEligible(ann, pageNumber)) {
       fallback.push(ann);
     }
   }
