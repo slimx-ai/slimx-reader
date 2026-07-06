@@ -1,5 +1,6 @@
 import type { AnnotationCreate, PdfAnchorRect } from './types';
 import { collectSelectionRects } from '../components/reader/pdfWordCache';
+import { smoothSelectionRange } from './selectionSmoothing';
 
 // Convert a DOM Range into [start, end] offsets of a container's rendered textContent, by walking
 // its text nodes. Returns null if the range endpoints can't be located in the container.
@@ -31,14 +32,18 @@ export type SelectionInfo = {
  * Inspect the current window selection and, if it lies inside an annotatable surface (a pdf.js text
  * layer or a container marked `data-annotate="markdown"`), return the quote, a positioning rect, and
  * a durable anchor. Returns null otherwise (collapsed selection, or outside any reader surface).
+ *
+ * When `smooth` is set (mouse selections), the raw drag is snapped to whole words and kept from
+ * spilling into the next block, and the smoothed range is reflected back into the live selection so
+ * the user sees the adjustment. Keyboard (shift+arrow) selections pass `smooth: false` so per-character
+ * intent is preserved.
  */
-export function readSelection(): SelectionInfo | null {
+export function readSelection({ smooth = false }: { smooth?: boolean } = {}): SelectionInfo | null {
   const selection = window.getSelection();
   if (!selection || selection.isCollapsed || selection.rangeCount === 0) return null;
-  const range = selection.getRangeAt(0);
-  const quote = selection.toString().trim();
-  if (!quote) return null;
-  const rect = range.getBoundingClientRect();
+  // Clone so the range we read `quote`/rects from is independent of the live selection — reflecting a
+  // smoothed range back below calls `removeAllRanges()`, which would otherwise collapse a live range.
+  const range = selection.getRangeAt(0).cloneRange();
 
   const startEl =
     range.startContainer.nodeType === Node.ELEMENT_NODE
@@ -46,6 +51,19 @@ export function readSelection(): SelectionInfo | null {
       : range.startContainer.parentElement;
 
   const pdfLayer = startEl?.closest('.pdf-viewer-text-layer');
+  const mdContainer = startEl?.closest<HTMLElement>('[data-annotate="markdown"]');
+
+  if (smooth && (pdfLayer || mdContainer)) {
+    if (smoothSelectionRange(range, mdContainer ?? null)) {
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+  }
+
+  const quote = range.toString().trim();
+  if (!quote) return null;
+  const rect = range.getBoundingClientRect();
+
   if (pdfLayer) {
     const pageCanvas = startEl?.closest<HTMLElement>('.pdf-viewer-page-canvas[data-page]');
     const page = pageCanvas ? Number(pageCanvas.dataset.page) || null : null;
@@ -62,7 +80,6 @@ export function readSelection(): SelectionInfo | null {
     };
   }
 
-  const mdContainer = startEl?.closest<HTMLElement>('[data-annotate="markdown"]');
   if (mdContainer) {
     const offsets = textOffsetsWithin(mdContainer, range);
     return {

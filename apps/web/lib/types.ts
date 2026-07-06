@@ -121,31 +121,6 @@ export type DocumentChunksResponse = {
   chunks: DocumentChunk[];
 };
 
-export type RagHealth = {
-  enabled: boolean;
-  url_configured: boolean;
-  adapter_kind: string;
-  real_available: boolean;
-  fallback_reason: string | null;
-  service_url: string | null;
-  vector_backend: string | null;
-  auth_enabled: boolean | null;
-};
-
-export type ModelOption = { provider: string; model: string; ref: string };
-
-export type ModelsHealth = {
-  slimx: { available: boolean; version: string | null };
-  ollama: { reachable: boolean; base_url: string; models: string[] };
-  rag: {
-    enabled: boolean;
-    real_available: boolean;
-    vector_backend: string | null;
-    fallback_reason: string | null;
-  };
-  default_model: { ref: string; available: boolean; cloud_enabled: boolean };
-};
-
 export type RetrievedChunkView = {
   rag_chunk_id: string;
   document_id: string | null;

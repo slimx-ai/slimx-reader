@@ -15,8 +15,17 @@ A professional, local-first reader with grounded Q&A:
 
 ### Known limitations
 
+- No DB migrations yet: the SQLite schema is created on startup (`create_all`); schema changes
+  will need Alembic (or a fresh `data/` dir) once the model evolves.
+- Side-panel tabs unmount on switch, so a typed-but-unasked question is lost when you leave the
+  Ask tab (keep-mounted panels are planned).
+- No authentication — the API must stay bound to localhost (see SECURITY.md); an optional
+  auth layer for LAN use is future work.
+
 - OCR for scanned/image-only PDFs is **not** included (they surface a clear message, never a
   fabricated answer).
+- Word/DOCX files are opened via **extracted text**, not rendered with their native layout and
+  styles (headings/tables/images are flattened). Native DOCX rendering is future work.
 - Annotations are app-level overlays; writing them back into the PDF is future work.
 - Cloud models are optional and disabled by default.
 - No multi-user/team mode; no agents, MCP, or web search.
@@ -30,6 +39,7 @@ A professional, local-first reader with grounded Q&A:
 
 ## v0.3
 
+- Native Word/DOCX rendering (preserve layout & styles) instead of text extraction.
 - Figure/table understanding.
 - VLM question over a selected page region.
 - Zotero export/import.

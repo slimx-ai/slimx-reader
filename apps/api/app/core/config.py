@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     max_document_upload_mb: int = 50
 
     # --- Web / CORS ---
-    cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    cors_origins: list[str] = ["http://localhost:3200", "http://127.0.0.1:3200"]
 
     # --- SlimX-RAG knowledge engine ---
     enable_rag: bool = True

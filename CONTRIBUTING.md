@@ -39,7 +39,7 @@ npx playwright install chromium         # first time only
 cd apps/web && npm run e2e
 ```
 
-If ports 3000/8000 are already in use, run the app on other ports and tell Playwright where it is:
+If ports 3200/8200 are already in use, run the app on other ports and tell Playwright where it is:
 
 ```bash
 READER_WEB_PORT=3999 READER_API_PORT=8999 ./scripts/dev.sh

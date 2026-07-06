@@ -110,6 +110,35 @@ button {
   color: var(--danger);
 }
 
+/* Keyboard focus: a consistent visible ring across the custom UI. */
+:is(button, a, input, textarea, select, [role='button'], [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* --- Transient action-error toast --- */
+.error-toast {
+  position: fixed;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(560px, calc(100vw - 32px));
+  background: var(--surface);
+  border: 1px solid var(--danger);
+  border-left-width: 4px;
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  padding: 10px 12px;
+  font-size: 0.85rem;
+}
+.error-toast-message {
+  word-break: break-word;
+}
+
 /* --- Page / Library --- */
 .page {
   max-width: 960px;
@@ -508,6 +537,7 @@ mark.annotation {
 }
 mark.annotation-highlight {
   background: rgba(250, 204, 21, 0.34);
+  cursor: pointer;
 }
 mark.annotation-comment {
   background: rgba(251, 191, 36, 0.2);
@@ -520,15 +550,41 @@ mark.annotation-ask {
   cursor: pointer;
 }
 
-/* --- Selection toolbar --- */
+/* --- Selection / highlight toolbar (vertical, floats beside the text) --- */
 .selection-toolbar {
-  display: inline-flex;
-  gap: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 10px;
   box-shadow: var(--shadow);
-  padding: 3px;
+  padding: 6px;
+}
+.swatch-row {
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+}
+.swatch {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+  transition: transform 0.08s ease;
+}
+.swatch:hover {
+  transform: scale(1.15);
+}
+.swatch.active {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--accent);
+}
+.selection-toolbar-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 .selection-toolbar-button {
   background: none;
@@ -537,52 +593,103 @@ mark.annotation-ask {
   padding: 5px 10px;
   font-size: 0.82rem;
   border-radius: 6px;
+  text-align: left;
 }
 .selection-toolbar-button:hover {
   background: var(--accent-weak);
   color: var(--accent);
 }
+.selection-toolbar-button.danger {
+  color: var(--danger);
+}
+.selection-toolbar-button.danger:hover {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+}
 
-/* --- Annotations panel list --- */
-.annotations-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+/* --- Inline comment composer (replaces the browser prompt) --- */
+.comment-composer {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-}
-.annotation-item {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 10px;
-  background: var(--surface);
-}
-.annotation-item-head {
-  display: flex;
-  align-items: center;
   gap: 8px;
-  font-size: 0.78rem;
+  width: 300px;
+  max-width: calc(100vw - 16px);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 10px;
 }
-.annotation-item-type {
-  font-weight: 600;
-}
-.annotation-item-page {
-  margin-right: auto;
-}
-.annotation-item-head .text-button:nth-child(3) {
-  margin-left: auto;
-}
-.annotation-item-quote {
-  margin: 6px 0 0;
-  padding-left: 10px;
+.comment-composer-quote {
+  margin: 0;
+  padding-left: 8px;
   border-left: 2px solid var(--accent);
-  font-size: 0.85rem;
+  font-size: 0.78rem;
   color: var(--muted);
+  max-height: 3.2em;
+  overflow: hidden;
 }
-.annotation-item-body {
-  margin: 6px 0 0;
+.comment-composer-input,
+.comment-card-input {
+  width: 100%;
+  resize: vertical;
+  font: inherit;
   font-size: 0.85rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+.comment-composer-actions,
+.comment-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+/* --- Floating comment cards / pins (Google-Docs style) --- */
+.comment-pin {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  line-height: 1;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+.comment-pin:hover {
+  border-color: var(--accent);
+}
+.comment-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 10px;
+}
+.comment-card-quote {
+  margin: 0;
+  padding-left: 8px;
+  border-left: 2px solid var(--accent);
+  font-size: 0.78rem;
+  color: var(--muted);
+  max-height: 3.2em;
+  overflow: hidden;
+}
+.comment-card-body {
+  margin: 0;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 /* --- Index status + chunk inspector --- */
@@ -847,6 +954,115 @@ mark.annotation-ask {
 .pdf-viewer-find-msg {
   font-size: 0.76rem;
 }
+.pdf-viewer-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 8px;
+}
+
+/* PDF left rail: page thumbnails + document outline */
+.pdf-sidebar {
+  flex: 0 0 170px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.pdf-sidebar-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--line);
+}
+.pdf-sidebar-tabs button {
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 6px 0;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+}
+.pdf-sidebar-tabs button.active {
+  color: var(--accent);
+  background: var(--accent-weak);
+}
+.pdf-sidebar-empty {
+  font-size: 0.78rem;
+  padding: 10px;
+}
+.pdf-thumbs {
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pdf-thumb {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 4px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.pdf-thumb:hover {
+  background: var(--surface-hover);
+}
+.pdf-thumb.active {
+  border-color: var(--accent);
+  background: var(--accent-weak);
+}
+.pdf-thumb-canvas {
+  display: block;
+  width: 140px;
+  min-height: 170px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.pdf-thumb-canvas canvas {
+  display: block;
+  width: 140px;
+  height: auto;
+}
+.pdf-thumb-num {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.pdf-outline {
+  overflow-y: auto;
+  padding: 6px;
+}
+.pdf-outline-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.pdf-outline-list .pdf-outline-list {
+  padding-left: 10px;
+}
+.pdf-outline-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 0.8rem;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.pdf-outline-item:hover {
+  background: var(--accent-weak);
+  color: var(--accent);
+}
 .pdf-viewer-page-wrap {
   flex: 1;
   min-height: 0;
@@ -905,13 +1121,17 @@ mark.annotation-ask {
   overflow-x: auto;
 }
 
-/* PDF annotation overlay (rectangles, non-interactive) */
+/* PDF annotation overlay (rectangles, non-interactive). No z-index/isolation on purpose: the layer
+   must NOT form its own stacking context, so the boxes' `mix-blend-mode: multiply` blends against the
+   page canvas below (tinting the paper while keeping the text crisp) rather than a transparent
+   backdrop (which would paint a flat film over the text). DOM order keeps it above the canvas and
+   below the text layer (which has z-index:2). */
 .pdf-annotation-layer {
   position: absolute;
   inset: 0;
   overflow: hidden;
   pointer-events: none;
-  z-index: 1;
+  isolation: auto;
 }
 .pdf-annotation {
   position: absolute;
@@ -921,6 +1141,18 @@ mark.annotation-ask {
 }
 .pdf-annotation-highlight {
   background: rgba(250, 204, 21, 0.55);
+}
+/* Search-match highlights (transient; painted by Find). Multiply keeps the matched text crisp. */
+.pdf-find-box {
+  position: absolute;
+  background: rgba(255, 190, 60, 0.45);
+  border-radius: 2px;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+}
+.pdf-find-box.current {
+  background: rgba(255, 140, 0, 0.6);
+  outline: 1.5px solid rgba(200, 90, 0, 0.85);
 }
 .pdf-annotation-comment {
   background: rgba(251, 191, 36, 0.4);
@@ -951,6 +1183,9 @@ mark.annotation-ask {
 
 @media (max-width: 720px) {
   .reader-panel {
+    display: none;
+  }
+  .pdf-sidebar {
     display: none;
   }
   .reader-title {

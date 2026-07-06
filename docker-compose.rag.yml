@@ -15,7 +15,8 @@ services:
     image: ${SLIMX_RAG_IMAGE:-ghcr.io/slimx-ai/slimx-rag:latest}
     command: ["slimx-rag", "serve", "--host", "0.0.0.0", "--port", "8080"]
     ports:
-      - "8080:8080"
+      # Local-only by default; see SECURITY.md before exposing beyond this machine.
+      - "${READER_BIND:-127.0.0.1}:8080:8080"
     environment:
       RAG_EMBED_PROVIDER: hf
       RAG_HF_MODEL: sentence-transformers/all-MiniLM-L6-v2

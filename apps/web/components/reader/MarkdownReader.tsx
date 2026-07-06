@@ -51,6 +51,8 @@ export function MarkdownReader({
     if (!el) return;
     el.innerHTML = html;
     applyAnnotations(el, annotations);
+    // Signal the CommentLayer that marks are (re)painted so it can position pins/cards against them.
+    el.dispatchEvent(new CustomEvent('reader-marks-painted', { bubbles: true }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [html, signature]);
 

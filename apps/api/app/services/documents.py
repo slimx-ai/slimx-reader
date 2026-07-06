@@ -8,8 +8,8 @@ from app.models.base import utcnow
 from app.models.document import Document, DocumentStatus
 from app.services.document_extraction import (
     DocumentExtractionError,
-    count_pdf_pages,
     detect_source_type,
+    extract_pdf,
     extract_text,
 )
 from app.storage import object_keys
@@ -50,15 +50,22 @@ def create_document(
     storage.put_bytes(original_key, data)
     doc.object_key = original_key
 
-    if source_type == "pdf":
-        doc.page_count = count_pdf_pages(data)
-
     # Best-effort text extraction — a failure here (e.g. scanned PDF) never blocks the upload;
-    # the document still opens and indexing will report a precise reason later.
-    try:
-        _, text = extract_text(filename, mime_type, data)
-    except DocumentExtractionError:
-        text = ""
+    # the document still opens and indexing will report a precise reason later. PDFs are parsed
+    # once, in a killable child process, yielding text AND page count (never in-process).
+    if source_type == "pdf":
+        try:
+            extraction = extract_pdf(data)
+            text = extraction.text
+            doc.page_count = extraction.page_count
+        except DocumentExtractionError as exc:
+            text = ""
+            doc.page_count = exc.page_count
+    else:
+        try:
+            _, text = extract_text(filename, mime_type, data)
+        except DocumentExtractionError:
+            text = ""
     if text.strip():
         text_key = object_keys.document_extracted_text_key(doc.id)
         storage.put_text(text_key, text)

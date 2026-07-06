@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stop the local dev processes (web :3000, api :8000) and the SlimX-RAG compose stack.
+# Stop the local dev processes (web :3200, api :8200) and the SlimX-RAG compose stack.
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -12,7 +12,7 @@ if [ -f "$ROOT/.env" ]; then
   set +a
 fi
 
-for port in "${READER_WEB_PORT:-3000}" "${READER_API_PORT:-8000}"; do
+for port in "${READER_WEB_PORT:-3200}" "${READER_API_PORT:-8200}"; do
   pids="$(lsof -ti tcp:"$port" 2>/dev/null || true)"
   if [ -n "$pids" ]; then
     echo "Stopping process on :$port"

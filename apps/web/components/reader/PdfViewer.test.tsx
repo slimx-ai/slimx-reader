@@ -46,7 +46,8 @@ describe('PdfViewer', () => {
       const wraps = container.querySelectorAll('.pdf-viewer-page-canvas');
       expect(wraps.length).toBe(25);
     });
-    // Page count reflects the loaded document.
-    expect(screen.getByText(/25/)).toBeInTheDocument();
+    // Page count reflects the loaded document (scope to the toolbar indicator; the sidebar also
+    // renders per-page thumbnail numbers).
+    expect(screen.getByText(/Page 1 \/ 25/)).toBeInTheDocument();
   });
 });

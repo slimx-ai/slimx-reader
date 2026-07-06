@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import type { Annotation } from '../../lib/types';
 import { classifyPdfLoadError, type DocumentError } from '../../lib/documentErrors';
 import { renderPdfPageOverlay } from './pdfAnnotationOverlay';
+import { PdfSidebar } from './PdfSidebar';
+import { countMatches, findMatchRanges, normalizeForFind } from './pdfFind';
 
 /**
  * Local-first PDF page viewer. Ported from SlimX-AI ControlRoom's PdfViewer.tsx (MIT).
@@ -37,12 +39,18 @@ export function PdfViewer({
   const [error, setError] = useState<DocumentError | null>(null);
   const [reloadNonce, setReloadNonce] = useState<number>(0);
   const [showDetails, setShowDetails] = useState<boolean>(false);
+  const [showSidebar, setShowSidebar] = useState<boolean>(true);
   const [query, setQuery] = useState<string>('');
   const [findMsg, setFindMsg] = useState<string | null>(null);
   const [searching, setSearching] = useState<boolean>(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const docRef = useRef<any>(null);
   const pageText = useRef<Map<number, string>>(new Map());
+  // Find state: the flat, ordered list of matches ({page, k = kth match on that page}), the active
+  // index into it, and the normalized query the list was built for.
+  const matchesRef = useRef<Array<{ page: number; k: number }>>([]);
+  const matchIdxRef = useRef<number>(-1);
+  const lastQueryRef = useRef<string>('');
   const renderSeq = useRef<number>(0);
   const renderedPages = useRef<Set<number>>(new Set());
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -74,6 +82,9 @@ export function PdfViewer({
     setStatus('loading');
     setError(null);
     pageText.current = new Map();
+    matchesRef.current = [];
+    matchIdxRef.current = -1;
+    lastQueryRef.current = '';
     renderedPages.current = new Set();
     estimatedSize.current = null;
     (async () => {
@@ -262,6 +273,18 @@ export function PdfViewer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, annotationSignature]);
 
+  // Clear stale find highlights whenever the query text changes (matches rebuild on the next Find).
+  useEffect(() => {
+    scrollRef.current?.querySelectorAll('.pdf-find-box').forEach((el) => el.remove());
+    if (!query.trim()) setFindMsg(null);
+  }, [query]);
+
+  function scrollToPage(n: number) {
+    scrollRef.current
+      ?.querySelector<HTMLElement>(`.pdf-viewer-page-canvas[data-page="${n}"]`)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   function onScroll() {
     const container = scrollRef.current;
     if (!container) return;
@@ -290,26 +313,87 @@ export function PdfViewer({
     }
   }
 
-  async function find() {
-    const q = query.trim().toLowerCase();
-    if (!q) {
+  function clearFindBoxes() {
+    scrollRef.current?.querySelectorAll('.pdf-find-box').forEach((el) => el.remove());
+  }
+
+  // Wait for a page's text layer to finish rendering (virtualized pages render on scroll).
+  async function waitForTextLayer(page: number): Promise<HTMLElement | null> {
+    const selector = `.pdf-viewer-page-canvas[data-page="${page}"] .pdf-viewer-text-layer`;
+    for (let i = 0; i < 40; i += 1) {
+      const layer = scrollRef.current?.querySelector<HTMLElement>(selector);
+      if (layer?.querySelector('span')) return layer;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    return scrollRef.current?.querySelector<HTMLElement>(selector) ?? null;
+  }
+
+  function paintFindBoxes(pageCanvas: HTMLElement, ranges: Range[], current: number) {
+    const pageBox = pageCanvas.getBoundingClientRect();
+    ranges.forEach((range, ri) => {
+      for (const r of Array.from(range.getClientRects())) {
+        const box = document.createElement('div');
+        box.className = `pdf-find-box${ri === current ? ' current' : ''}`;
+        box.style.left = `${r.left - pageBox.left}px`;
+        box.style.top = `${r.top - pageBox.top}px`;
+        box.style.width = `${r.width}px`;
+        box.style.height = `${r.height}px`;
+        pageCanvas.appendChild(box);
+      }
+    });
+  }
+
+  async function gotoMatch(index: number) {
+    const list = matchesRef.current;
+    const match = list[index];
+    if (!match) return;
+    clearFindBoxes();
+    scrollToPage(match.page);
+    const layer = await waitForTextLayer(match.page);
+    if (!layer) {
+      setFindMsg(`${index + 1} / ${list.length}`);
+      return;
+    }
+    const ranges = findMatchRanges(layer, lastQueryRef.current);
+    const pageCanvas = layer.closest<HTMLElement>('.pdf-viewer-page-canvas');
+    const k = Math.min(match.k, Math.max(0, ranges.length - 1));
+    if (pageCanvas && ranges.length) paintFindBoxes(pageCanvas, ranges, k);
+    ranges[k]?.startContainer.parentElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setFindMsg(`${index + 1} / ${list.length}`);
+  }
+
+  // Enter / Find advance to the next match; Shift+Enter / ‹ go back. The first call for a new query
+  // scans every page's text to build the ordered match list; later calls just move the cursor.
+  async function find(direction: 1 | -1 = 1) {
+    const qNorm = normalizeForFind(query);
+    if (!qNorm) {
+      clearFindBoxes();
+      matchesRef.current = [];
+      matchIdxRef.current = -1;
+      lastQueryRef.current = '';
       setFindMsg(null);
       return;
     }
     setSearching(true);
     try {
-      for (let n = 1; n <= numPages; n += 1) {
-        const text = await ensurePageText(n);
-        if (text.toLowerCase().includes(q)) {
-          const target = scrollRef.current?.querySelector<HTMLElement>(
-            `.pdf-viewer-page-canvas[data-page="${n}"]`,
-          );
-          target?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
-          setFindMsg(`Found on page ${n}`);
-          return;
+      if (qNorm !== lastQueryRef.current) {
+        const list: Array<{ page: number; k: number }> = [];
+        for (let n = 1; n <= numPages; n += 1) {
+          const count = countMatches(await ensurePageText(n), qNorm);
+          for (let k = 0; k < count; k += 1) list.push({ page: n, k });
         }
+        matchesRef.current = list;
+        matchIdxRef.current = -1;
+        lastQueryRef.current = qNorm;
       }
-      setFindMsg('Not found in this document.');
+      const list = matchesRef.current;
+      if (!list.length) {
+        clearFindBoxes();
+        setFindMsg('No matches');
+        return;
+      }
+      matchIdxRef.current = (matchIdxRef.current + direction + list.length) % list.length;
+      await gotoMatch(matchIdxRef.current);
     } finally {
       setSearching(false);
     }
@@ -358,6 +442,16 @@ export function PdfViewer({
   return (
     <div className="pdf-viewer">
       <div className="pdf-viewer-toolbar" role="toolbar" aria-label="PDF controls">
+        <button
+          type="button"
+          className="secondary-button"
+          aria-label="Toggle thumbnails and outline"
+          aria-pressed={showSidebar}
+          title="Thumbnails & outline"
+          onClick={() => setShowSidebar((s) => !s)}
+        >
+          ☰
+        </button>
         <span className="pdf-viewer-page">
           {status === 'loading' ? 'Loading…' : `Page ${currentPage} / ${numPages}`}
         </span>
@@ -398,26 +492,47 @@ export function PdfViewer({
           onKeyDown={(event) => {
             if (event.key === 'Enter') {
               event.preventDefault();
-              void find();
+              void find(event.shiftKey ? -1 : 1);
             }
           }}
         />
         <button
           type="button"
           className="secondary-button"
+          aria-label="Previous match"
+          title="Previous match (Shift+Enter)"
+          disabled={searching || !query.trim()}
+          onClick={() => void find(-1)}
+        >
+          ‹
+        </button>
+        <button
+          type="button"
+          className="secondary-button"
+          title="Next match (Enter)"
           disabled={searching}
-          onClick={() => void find()}
+          onClick={() => void find(1)}
         >
           {searching ? 'Finding…' : 'Find'}
         </button>
         {findMsg ? <span className="pdf-viewer-find-msg muted">{findMsg}</span> : null}
       </div>
-      <div className="pdf-viewer-page-wrap" ref={scrollRef} onScroll={onScroll} dir="auto">
-        {status === 'loading' ? (
-          <p className="muted" role="status">
-            Loading PDF…
-          </p>
+      <div className="pdf-viewer-body">
+        {showSidebar ? (
+          <PdfSidebar
+            doc={status === 'ready' ? docRef.current : null}
+            numPages={numPages}
+            currentPage={currentPage}
+            onNavigate={scrollToPage}
+          />
         ) : null}
+        <div className="pdf-viewer-page-wrap" ref={scrollRef} onScroll={onScroll} dir="auto">
+          {status === 'loading' ? (
+            <p className="muted" role="status">
+              Loading PDF…
+            </p>
+          ) : null}
+        </div>
       </div>
     </div>
   );

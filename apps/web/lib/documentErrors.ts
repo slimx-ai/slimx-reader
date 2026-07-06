@@ -101,7 +101,7 @@ export function classifyUploadError(error: unknown, filename?: string): Document
       'network_failed',
       filename
         ? `Could not upload “${filename}”. The connection dropped — often because the file is over the size limit.`
-        : 'Could not reach the server while uploading. Is the SlimX Reader API running on :8000?',
+        : 'Could not reach the server while uploading. Is the SlimX Reader API running on :8200?',
       { detail: raw },
     );
   }

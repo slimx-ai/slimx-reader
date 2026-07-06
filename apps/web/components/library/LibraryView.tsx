@@ -7,6 +7,7 @@ import { classifyUploadError, type DocumentError } from '../../lib/documentError
 import type { Document, ReaderSettings } from '../../lib/types';
 import { EmptyState } from '../common/EmptyState';
 import { ErrorCard } from '../common/ErrorCard';
+import { ErrorToast } from '../common/ErrorToast';
 import { LocalCloudBadge } from '../common/LocalCloudBadge';
 import { Spinner } from '../common/Spinner';
 import { UploadDropzone } from './UploadDropzone';
@@ -23,8 +24,11 @@ export function LibraryView() {
   const [docs, setDocs] = useState<Document[]>([]);
   const [settings, setSettings] = useState<ReaderSettings | null>(null);
   const [query, setQuery] = useState('');
+  // The query the current list was loaded with — distinguishes "empty library" from "no matches".
+  const [activeQuery, setActiveQuery] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<DocumentError | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const load = useCallback(async (q?: string) => {
     setLoading(true);
@@ -36,6 +40,7 @@ export function LibraryView() {
       ]);
       setDocs(list.items);
       setSettings(s);
+      setActiveQuery(q ?? null);
     } catch (err) {
       setError(classifyUploadError(err));
     } finally {
@@ -48,8 +53,12 @@ export function LibraryView() {
   }, [load]);
 
   const handleDelete = useCallback(async (id: string) => {
-    await deleteDocument(id);
-    setDocs((prev) => prev.filter((d) => d.id !== id));
+    try {
+      await deleteDocument(id);
+      setDocs((prev) => prev.filter((d) => d.id !== id));
+    } catch {
+      setActionError('Could not delete the document. Is the API still running?');
+    }
   }, []);
 
   return (
@@ -64,7 +73,10 @@ export function LibraryView() {
         {settings ? <LocalCloudBadge cloudEnabled={settings.allow_cloud_providers} /> : null}
       </header>
 
-      <UploadDropzone onUploaded={(doc) => setDocs((prev) => [doc, ...prev])} />
+      <UploadDropzone
+        onUploaded={(doc) => setDocs((prev) => [doc, ...prev])}
+        maxUploadMb={settings?.max_document_upload_mb}
+      />
 
       <div className="library-toolbar">
         <input
@@ -89,6 +101,19 @@ export function LibraryView() {
         <div className="library-loading">
           <Spinner label="Loading library…" />
         </div>
+      ) : docs.length === 0 && activeQuery ? (
+        <EmptyState title={`No documents match “${activeQuery}”`} icon="🔍">
+          <button
+            type="button"
+            className="text-button"
+            onClick={() => {
+              setQuery('');
+              void load();
+            }}
+          >
+            Clear search
+          </button>
+        </EmptyState>
       ) : docs.length === 0 ? (
         <EmptyState title="Your library is empty" icon="📚">
           Upload a PDF, DOCX, Markdown, or text file above to start reading.
@@ -120,6 +145,10 @@ export function LibraryView() {
           ))}
         </ul>
       )}
+
+      {actionError ? (
+        <ErrorToast message={actionError} onDismiss={() => setActionError(null)} />
+      ) : null}
     </div>
   );
 }

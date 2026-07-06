@@ -43,13 +43,14 @@ export function IndexStatusBadge({
   const [current, setCurrent] = useState<string>(status);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const attempts = useRef(0);
 
   useEffect(() => setCurrent(status), [status]);
 
   const stopPolling = useCallback(() => {
     if (timer.current) {
-      clearInterval(timer.current);
+      clearTimeout(timer.current);
       timer.current = null;
     }
   }, []);
@@ -59,22 +60,30 @@ export function IndexStatusBadge({
       stopPolling();
       return;
     }
-    timer.current = setInterval(async () => {
+    attempts.current = 0;
+    const tick = async () => {
       try {
         const job = await getIndexingJob(documentId);
-        if (!job) return;
-        if (job.status !== current) {
-          setCurrent(job.status);
-          if (TERMINAL.has(job.status)) {
-            stopPolling();
-            onStatusChange(job.status, job);
+        if (job) {
+          if (job.status !== current) {
+            setCurrent(job.status);
+            if (TERMINAL.has(job.status)) {
+              stopPolling();
+              onStatusChange(job.status, job);
+              return;
+            }
           }
+          if (job.status === 'failed') setError(job.error_reason);
         }
-        if (job.status === 'failed') setError(job.error_reason);
       } catch {
         // transient; keep polling
       }
-    }, 1500);
+      // Back off after the first minute so a long job (or a down RAG service) isn't hammered.
+      attempts.current += 1;
+      const delay = attempts.current < 40 ? 1500 : 5000;
+      timer.current = setTimeout(tick, delay);
+    };
+    timer.current = setTimeout(tick, 1500);
     return stopPolling;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current, documentId]);

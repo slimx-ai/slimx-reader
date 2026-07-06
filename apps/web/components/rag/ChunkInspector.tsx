@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { listDocumentChunks } from '../../lib/api';
+import { copyText } from '../../lib/clipboard';
 import type { DocumentChunk } from '../../lib/types';
 import { EmptyState } from '../common/EmptyState';
 import { Spinner } from '../common/Spinner';
 
 /**
  * Lists the chunks SlimX-RAG produced for a document (page, section, text) so the user can see
- * exactly what the index holds. `onSaveEvidence` / `onAsk` are wired in Phase 4.
+ * exactly what the index holds, with Copy / Save-as-evidence / Ask-about-this per chunk.
  */
 export function ChunkInspector({
   documentId,
@@ -60,7 +61,17 @@ export function ChunkInspector({
       </EmptyState>
     );
   }
-  if (status === 'error' || !chunks.length) {
+  if (status === 'error') {
+    return (
+      <EmptyState title="Couldn’t load chunks">
+        The API or SlimX-RAG didn’t respond.{' '}
+        <button type="button" className="text-button" onClick={() => void load()}>
+          Retry
+        </button>
+      </EmptyState>
+    );
+  }
+  if (!chunks.length) {
     return <EmptyState title="No chunks to show" />;
   }
 
@@ -83,7 +94,7 @@ export function ChunkInspector({
             <button
               type="button"
               className="text-button"
-              onClick={() => void navigator.clipboard?.writeText(chunk.text)}
+              onClick={() => void copyText(chunk.text)}
             >
               Copy
             </button>

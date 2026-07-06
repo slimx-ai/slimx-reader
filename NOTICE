@@ -1,0 +1,14 @@
+SlimX Reader
+Copyright (c) 2026 SlimX
+
+Licensed under the MIT License (see LICENSE).
+
+Portions of this software are ported or adapted from SlimX-AI ControlRoom
+(https://slimx.ai), Copyright (c) 2026 SlimX, also licensed under the MIT
+License. Files carrying that lineage note it in their header docstring —
+including the document extraction, privacy/redaction, RAG adapter, PDF viewer,
+and annotation rendering modules.
+
+Bundled third-party runtime dependencies retain their own licenses, notably:
+  - pdf.js (pdfjs-dist) — Apache License 2.0, Mozilla Foundation
+    (the pdf.js worker is served from the app itself; no CDN is used)

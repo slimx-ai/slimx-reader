@@ -9,7 +9,7 @@ export default defineConfig({
   retries: 0,
   reporter: [['list']],
   use: {
-    baseURL: process.env.READER_WEB_URL || 'http://localhost:3000',
+    baseURL: process.env.READER_WEB_URL || 'http://localhost:3200',
     trace: 'on-first-retry',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],

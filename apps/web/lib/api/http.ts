@@ -1,7 +1,7 @@
 // Thin fetch wrapper. All backend calls go through here; components never fetch directly.
 
 export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8000';
+  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8200';
 
 export class ApiError extends Error {
   status?: number;
@@ -55,7 +55,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
       },
     });
   } catch (cause) {
-    throw new ApiError('Could not reach the SlimX Reader API. Is it running on :8000?', {
+    throw new ApiError('Could not reach the SlimX Reader API. Is it running on :8200?', {
       code: 'network_failed',
       detail: cause instanceof Error ? cause.message : String(cause),
     });

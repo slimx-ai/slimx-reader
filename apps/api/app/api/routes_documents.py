@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, Query, Request, Response, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import func
 from sqlmodel import Session, col, select
 
@@ -85,8 +86,10 @@ async def upload_document(
     data = await _read_bounded(file, limit)
     if not data:
         raise reader_error(400, ErrorCode.BAD_REQUEST, "Uploaded file is empty.")
-    doc = create_document(
-        session, storage, filename=filename, mime_type=file.content_type, data=data
+    # Hashing + extraction are CPU/IO-bound (a slow PDF can take up to the 30s extraction
+    # timeout); run off the event loop so concurrent requests aren't stalled.
+    doc = await run_in_threadpool(
+        create_document, session, storage, filename=filename, mime_type=file.content_type, data=data
     )
     # Kick off indexing in the background (the worker drains the queue). If SlimX-RAG is down the
     # job parks as waiting_for_rag; the document is fully usable for reading/annotation meanwhile.

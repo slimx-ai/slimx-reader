@@ -7,8 +7,8 @@ orchestrates two SlimX ecosystem services: **SlimX-RAG** (knowledge engine) and 
 ## Runtime shape
 
 ```
-Next.js Reader Web (:3000)
-  → SlimX Reader API  (FastAPI, :8000)
+Next.js Reader Web (:3200)
+  → SlimX Reader API  (FastAPI, :8200)
       → SQLite metadata         (data/reader.db)
       → local file storage      (data/documents/, data/exports/)
       → RagAdapter → SlimX-RAG service (:8080)     [READER_ENABLE_RAG + READER_SLIMX_RAG_URL]

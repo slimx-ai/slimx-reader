@@ -1,3 +1,4 @@
+import { copyText } from '../../lib/clipboard';
 import type { RetrievedChunkView } from '../../lib/types';
 
 const LOW_RELEVANCE_THRESHOLD = 0.5;
@@ -39,7 +40,7 @@ export function CitationsPanel({
             <button
               type="button"
               className="text-button"
-              onClick={() => void navigator.clipboard?.writeText(chunk.text)}
+              onClick={() => void copyText(chunk.text)}
             >
               Copy
             </button>

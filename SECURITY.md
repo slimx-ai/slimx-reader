@@ -15,6 +15,13 @@ We aim to acknowledge reports within a few business days.
 
 ## Scope & design notes
 
+- **No authentication — keep the ports local.** The API is a single-user local service with no
+  login: anyone who can reach it can list, read, upload, and delete every document, and change
+  settings (including enabling cloud providers). `docker-compose.yml` therefore publishes ports
+  on `127.0.0.1` by default, and `./scripts/dev.sh` runs the API on localhost. If you set
+  `READER_BIND=0.0.0.0` (or otherwise expose the ports), you are offering an unauthenticated
+  document store to your network — only do that behind a reverse proxy that adds authentication,
+  or on a network where you trust every device.
 - **No telemetry.** The app makes no analytics or phone-home calls.
 - **Cloud is opt-in.** With `READER_ALLOW_CLOUD_PROVIDERS=false` (the default), the API blocks
   any request that would send a prompt, document chunk, or evidence to a non-local endpoint,

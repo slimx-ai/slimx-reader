@@ -7,6 +7,7 @@ from the local object store.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterator
 
 from fastapi import Response
@@ -15,6 +16,12 @@ from fastapi.responses import StreamingResponse
 from app.storage.local_storage import LocalObjectStorage, StorageObjectMissing
 
 _CHUNK = 256 * 1024
+
+
+def _header_safe_filename(filename: str) -> str:
+    """Sanitize a filename for a quoted Content-Disposition value (no quotes/control chars)."""
+    cleaned = re.sub(r'[\r\n"\\]', "_", filename).strip()
+    return cleaned[:150] or "document"
 
 
 def _parse_range(header: str | None, size: int) -> tuple[int, int] | None:
@@ -65,7 +72,9 @@ def serve_object(
         "Cache-Control": "no-store",
     }
     if filename:
-        base_headers["Content-Disposition"] = f'inline; filename="{filename}"'
+        base_headers["Content-Disposition"] = (
+            f'inline; filename="{_header_safe_filename(filename)}"'
+        )
 
     try:
         rng = _parse_range(range_header, size)

@@ -1,8 +1,17 @@
-# Full SlimX Reader stack in Docker: web + API + SlimX-RAG.
+# SlimX Reader in Docker.
 #
-#   docker compose up                # pull published images (ghcr.io/slimx-ai/slimx-reader-*)
-#   docker compose up --build        # build the reader images from source instead
-#   open http://localhost:3000
+#   docker compose up --build                  # reader only: web + API, built from this repo
+#   docker compose --profile rag up --build    # + SlimX-RAG for indexing & grounded Q&A
+#   open http://localhost:3200
+#
+# Without the `rag` profile the reader is fully usable for reading/annotation; indexing parks as
+# "waiting_for_rag" until SlimX-RAG is reachable. The slimx-rag image comes from a separate repo
+# (github.com/slimx-ai/SlimX-RAG) and is pull-only here — if the published image is unavailable,
+# build it there and set SLIMX_RAG_IMAGE=slimx-rag:local.
+#
+# Ports bind to 127.0.0.1 by default: the API has NO authentication (local single-user app), so it
+# must not be exposed to the LAN casually. To serve your network anyway: READER_BIND=0.0.0.0 — and
+# read SECURITY.md first.
 #
 # For grounded answers, run a local model on the host (Ollama) — the API reaches it via
 # host.docker.internal. Or run `docker compose --profile ollama -f docker-compose.rag.yml up`.
@@ -14,7 +23,7 @@ services:
     image: ${READER_API_IMAGE:-ghcr.io/slimx-ai/slimx-reader-api:latest}
     build: ./apps/api
     ports:
-      - "8000:8000"
+      - "${READER_BIND:-127.0.0.1}:8200:8200"
     environment:
       READER_ENABLE_RAG: ${READER_ENABLE_RAG:-true}
       READER_SLIMX_RAG_URL: ${READER_SLIMX_RAG_URL:-http://slimx-rag:8080}
@@ -25,21 +34,20 @@ services:
       - reader-data:/data
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    depends_on:
-      - slimx-rag
 
   web:
     image: ${READER_WEB_IMAGE:-ghcr.io/slimx-ai/slimx-reader-web:latest}
     build:
       context: ./apps/web
       args:
-        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8200}
     ports:
-      - "3000:3000"
+      - "${READER_BIND:-127.0.0.1}:3200:3200"
     depends_on:
       - api
 
   slimx-rag:
+    profiles: ["rag"]
     image: ${SLIMX_RAG_IMAGE:-ghcr.io/slimx-ai/slimx-rag:latest}
     command: ["slimx-rag", "serve", "--host", "0.0.0.0", "--port", "8080"]
     environment:

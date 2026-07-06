@@ -2,7 +2,7 @@
 # Run SlimX Reader locally: FastAPI API and the Next.js web app.
 # First run bootstraps the Python venv and npm deps. Ctrl-C stops both.
 #
-# Ports (override if 3000/8000 are taken — e.g. another app is already running):
+# Ports (override if 3200/8200 are taken — e.g. another app is already running):
 #   READER_WEB_PORT=3999 READER_API_PORT=8999 ./scripts/dev.sh
 #
 # For indexing and grounded Q&A, also start SlimX-RAG in another terminal:
@@ -22,8 +22,8 @@ if [ -f "$ROOT/.env" ]; then
   set +a
 fi
 
-API_PORT="${READER_API_PORT:-8000}"
-WEB_PORT="${READER_WEB_PORT:-3000}"
+API_PORT="${READER_API_PORT:-8200}"
+WEB_PORT="${READER_WEB_PORT:-3200}"
 # Wire the web app to this API port and allow its origin through CORS (both used by the app below).
 export NEXT_PUBLIC_API_BASE_URL="${NEXT_PUBLIC_API_BASE_URL:-http://localhost:${API_PORT}}"
 export READER_CORS_ORIGINS="${READER_CORS_ORIGINS:-[\"http://localhost:${WEB_PORT}\",\"http://127.0.0.1:${WEB_PORT}\"]}"

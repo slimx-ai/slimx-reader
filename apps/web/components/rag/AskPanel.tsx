@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { askOverDocuments } from '../../lib/api';
 import { classifyUploadError, type DocumentError } from '../../lib/documentErrors';
 import type { AskResponse, RetrievedChunkView } from '../../lib/types';
@@ -23,20 +23,37 @@ const DEGRADED_LABEL: Record<string, string> = {
 export function AskPanel({
   documentId,
   indexed,
+  seed,
+  defaultTopK,
+  defaultMinScore,
   onSaveEvidence,
   onSaveAnswer,
 }: {
   documentId: string;
   indexed: boolean;
+  /** Question text pushed in from a selection or chunk ("Ask"). The nonce forces re-seeding. */
+  seed?: { text: string; nonce: number } | null;
+  defaultTopK?: number;
+  defaultMinScore?: number;
   onSaveEvidence?: (chunk: RetrievedChunkView, runId: string) => void;
   onSaveAnswer?: (answer: string, runId: string) => void;
 }) {
-  const [question, setQuestion] = useState('');
-  const [topK, setTopK] = useState(8);
-  const [minScore, setMinScore] = useState(0);
+  const [question, setQuestion] = useState(seed?.text ?? '');
+  const [topK, setTopK] = useState(defaultTopK ?? 8);
+  const [minScore, setMinScore] = useState(defaultMinScore ?? 0);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<AskResponse | null>(null);
   const [error, setError] = useState<DocumentError | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const seenSeed = useRef<number | null>(seed?.nonce ?? null);
+
+  // A fresh seed (new nonce) replaces the question and focuses the input, even while mounted.
+  useEffect(() => {
+    if (!seed || seed.nonce === seenSeed.current) return;
+    seenSeed.current = seed.nonce;
+    setQuestion(seed.text);
+    inputRef.current?.focus();
+  }, [seed]);
 
   const ask = async () => {
     const q = question.trim();
@@ -69,6 +86,7 @@ export function AskPanel({
   return (
     <div className="ask-panel">
       <textarea
+        ref={inputRef}
         className="ask-input"
         placeholder="Ask a question about this document…"
         value={question}

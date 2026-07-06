@@ -9,7 +9,14 @@ import { Spinner } from '../common/Spinner';
 
 const ACCEPT = '.pdf,.docx,.md,.txt,.py,.ts,.tsx,.js,.jsx,.json,.yaml,.yml';
 
-export function UploadDropzone({ onUploaded }: { onUploaded: (doc: Document) => void }) {
+export function UploadDropzone({
+  onUploaded,
+  maxUploadMb,
+}: {
+  onUploaded: (doc: Document) => void;
+  /** When known (from settings), oversized files are rejected before any bytes are sent. */
+  maxUploadMb?: number | null;
+}) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -17,8 +24,17 @@ export function UploadDropzone({ onUploaded }: { onUploaded: (doc: Document) => 
 
   const upload = useCallback(
     async (file: File) => {
-      setBusy(true);
       setError(null);
+      if (maxUploadMb && file.size > maxUploadMb * 1024 * 1024) {
+        setError({
+          code: 'file_too_large',
+          message: `“${file.name}” is ${(file.size / (1024 * 1024)).toFixed(1)} MB — over the ${maxUploadMb} MB upload limit.`,
+          recovery: `Split the file, or raise READER_MAX_DOCUMENT_UPLOAD_MB.`,
+          retryable: false,
+        });
+        return;
+      }
+      setBusy(true);
       try {
         const doc = await uploadDocument(file);
         onUploaded(doc);
@@ -28,7 +44,7 @@ export function UploadDropzone({ onUploaded }: { onUploaded: (doc: Document) => 
         setBusy(false);
       }
     },
-    [onUploaded],
+    [onUploaded, maxUploadMb],
   );
 
   return (
@@ -50,7 +66,10 @@ export function UploadDropzone({ onUploaded }: { onUploaded: (doc: Document) => 
         role="button"
         tabIndex={0}
         onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') inputRef.current?.click();
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault(); // Space must not scroll the page
+            inputRef.current?.click();
+          }
         }}
       >
         <input

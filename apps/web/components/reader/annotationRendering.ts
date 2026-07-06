@@ -1,4 +1,5 @@
 import type { Annotation } from '../../lib/types';
+import { highlightColor } from '../../lib/highlightColors';
 
 // Shared annotation renderer: locates saved annotations against the rendered (visible) text of ANY
 // DOM container and wraps matching spans in <mark>. Used by MarkdownReader (md/txt/code) and by the
@@ -15,6 +16,9 @@ export type AnnotationRange = {
   types: string[];
   bodies: string[];
   labels: string[];
+  // Per-annotation color key, index-aligned with `types` (null = default), so a merged span can pick
+  // the color of the highlight it contains.
+  colors: Array<string | null>;
 };
 
 function collapseWhitespace(value: string): string {
@@ -96,6 +100,7 @@ export function annotationRanges(content: string, annotations: Annotation[]): An
       types: [ann.type],
       bodies: ann.body ? [ann.body] : [],
       labels: ann.labels ?? [],
+      colors: [ann.color ?? null],
     });
   }
   raw.sort((a, b) => a.start - b.start || a.end - b.end);
@@ -109,6 +114,7 @@ export function annotationRanges(content: string, annotations: Annotation[]): An
       previous.types.push(...range.types);
       previous.bodies.push(...range.bodies);
       previous.labels.push(...range.labels);
+      previous.colors.push(...range.colors);
     } else {
       merged.push({
         ...range,
@@ -116,6 +122,7 @@ export function annotationRanges(content: string, annotations: Annotation[]): An
         types: [...range.types],
         bodies: [...range.bodies],
         labels: [...range.labels],
+        colors: [...range.colors],
       });
     }
   }
@@ -134,6 +141,13 @@ function markTitle(range: AnnotationRange): string {
 function markClasses(types: string[]): string {
   const set = new Set(types.map(typeModifier));
   return ['annotation', ...set].join(' ');
+}
+
+// Background fill for a merged span: the color of the first highlight it contains (null if the span is
+// only a comment/ask, which keep their class-based styling).
+function highlightFill(range: AnnotationRange): string | null {
+  const idx = range.types.indexOf('highlight');
+  return idx === -1 ? null : highlightColor(range.colors[idx]).mark;
 }
 
 // Unwrap any marks a previous pass added, restoring the original text nodes. Needed because a second
@@ -195,6 +209,8 @@ export function applyAnnotations(container: HTMLElement, annotations: Annotation
       const ids = Array.from(new Set(segment.range.ids));
       const mark = document.createElement('mark');
       mark.className = markClasses(segment.range.types);
+      const fill = highlightFill(segment.range);
+      if (fill) mark.style.backgroundColor = fill;
       mark.setAttribute('title', markTitle(segment.range));
       mark.setAttribute('data-annotation-ids', ids.join(' '));
       mark.setAttribute('data-annotation-type', segment.range.types[0] || 'highlight');

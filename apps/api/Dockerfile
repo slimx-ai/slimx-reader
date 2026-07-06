@@ -8,8 +8,11 @@ ENV PYTHONUNBUFFERED=1 \
 # Install deps first (pyproject) for better layer caching, then the app.
 COPY pyproject.toml ./
 COPY app ./app
-RUN pip install --no-cache-dir . && mkdir -p /data
+RUN pip install --no-cache-dir . \
+    && useradd --create-home --uid 1000 reader \
+    && mkdir -p /data && chown reader:reader /data
 
+USER reader
 VOLUME ["/data"]
-EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+EXPOSE 8200
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8200"]

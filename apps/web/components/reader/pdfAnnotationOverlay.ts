@@ -1,4 +1,5 @@
 import type { Annotation } from '../../lib/types';
+import { highlightColor } from '../../lib/highlightColors';
 import { annotationRanges } from './annotationRendering';
 import {
   denormalizeRect,
@@ -50,7 +51,7 @@ function rangeFromVisibleOffsets(root: HTMLElement, start: number, end: number):
   }
 }
 
-type BoxSpec = { modifier: string; title: string; ids: string[] };
+type BoxSpec = { modifier: string; title: string; ids: string[]; fill?: string | null };
 
 // Build one overlay rectangle in page-canvas-origin pixels (0,0 = canvas top-left) so a box scrolls
 // and zooms with the page and never needs re-measuring on scroll.
@@ -59,6 +60,7 @@ function makeBox(rect: RectLike, spec: BoxSpec): HTMLDivElement {
   box.className = `pdf-annotation ${spec.modifier}`;
   // Never intercept pointer events — a drag over a highlight must reach the text layer, not the box.
   box.style.pointerEvents = 'none';
+  if (spec.fill) box.style.background = spec.fill;
   box.style.left = `${rect.left}px`;
   box.style.top = `${rect.top}px`;
   box.style.width = `${rect.width}px`;
@@ -112,6 +114,7 @@ export function renderPdfPageOverlay(
           modifier: typeModifier(ann.type),
           title: ann.body || (ann.labels?.length ? `Labels: ${ann.labels.join(', ')}` : 'Saved highlight'),
           ids: [ann.id],
+          fill: ann.type === 'highlight' ? highlightColor(ann.color).pdf : null,
         },
       );
     } else {
@@ -131,10 +134,12 @@ export function renderPdfPageOverlay(
       width: r.width,
       height: r.height,
     }));
+    const hi = range.types.indexOf('highlight');
     paintLines(rectLikes, {
       modifier: typeModifier(range.types[0] || 'highlight'),
       title: range.bodies[0] || 'Saved highlight',
       ids: range.ids,
+      fill: hi === -1 ? null : highlightColor(range.colors[hi]).pdf,
     });
   }
 }

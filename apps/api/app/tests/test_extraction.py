@@ -4,8 +4,8 @@ import pytest
 
 from app.services.document_extraction import (
     DocumentExtractionError,
-    count_pdf_pages,
     detect_source_type,
+    extract_pdf,
     extract_text,
     is_supported_document,
 )
@@ -42,9 +42,11 @@ def test_extract_text_pdf() -> None:
     assert "Retrieval augmented" in text
 
 
-def test_count_pdf_pages() -> None:
-    assert count_pdf_pages(make_pdf()) == 1
-    assert count_pdf_pages(b"not a pdf") is None
+def test_extract_pdf_reports_page_count() -> None:
+    extraction = extract_pdf(make_pdf())
+    assert extraction.page_count == 1
+    with pytest.raises(DocumentExtractionError):
+        extract_pdf(b"not a pdf")
 
 
 def test_extract_docx_invalid_raises() -> None:
