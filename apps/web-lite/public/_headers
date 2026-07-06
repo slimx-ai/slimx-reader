@@ -1,0 +1,5 @@
+# Cross-origin isolation enables multithreaded WASM for Transformers.js embeddings.
+# Honored by Netlify/Cloudflare Pages; harmless elsewhere.
+/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: credentialless

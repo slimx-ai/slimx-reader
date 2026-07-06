@@ -3,6 +3,8 @@ node_modules/
 apps/web/.next/
 apps/web/out/
 apps/web/public/pdf.worker.min.mjs
+apps/web-lite/public/pdf.worker.min.mjs
+apps/web-lite/public/samples/
 *.tsbuildinfo
 npm-debug.log*
 .eslintcache
@@ -29,8 +31,6 @@ data/indexes/*
 !data/indexes/.gitkeep
 apps/*/data/
 *.db
-*.sqlite
-*.sqlite3
 *.sqlite
 *.sqlite3
 
