@@ -116,6 +116,16 @@ button {
   outline-offset: 2px;
 }
 
+/* Reader chrome is not copyable content — keep document drags from grabbing UI text.
+   (Panel bodies stay selectable: answers/chunks/notes are meant to be copied.) */
+.reader-topbar,
+.reader-panel-tabs,
+.pdf-viewer-toolbar,
+.pdf-sidebar,
+.selection-toolbar {
+  user-select: none;
+}
+
 /* --- Transient action-error toast --- */
 .error-toast {
   position: fixed;
@@ -1176,9 +1186,27 @@ mark.annotation-ask {
   white-space: pre;
   cursor: text;
   transform-origin: 0 0;
+  /* Keep text hit-testable ABOVE the expanded .endOfContent (z-index 0) while selecting. */
+  z-index: 1;
 }
 .pdf-viewer-text-layer ::selection {
   background: rgba(31, 122, 92, 0.35);
+}
+.pdf-viewer-text-layer br::selection {
+  background: transparent;
+}
+/* Selection guard (ported from pdf.js): while dragging, a full-cover unselectable element stops the
+   selection from snapping across paragraphs. Managed by attachTextLayerSelectionGuard. */
+.pdf-viewer-text-layer .endOfContent {
+  display: block;
+  position: absolute;
+  inset: 100% 0 0;
+  z-index: 0;
+  cursor: default;
+  user-select: none;
+}
+.pdf-viewer-text-layer.selecting .endOfContent {
+  top: 0;
 }
 
 @media (max-width: 720px) {

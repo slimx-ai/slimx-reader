@@ -53,6 +53,11 @@ export function readSelection({ smooth = false }: { smooth?: boolean } = {}): Se
   const pdfLayer = startEl?.closest('.pdf-viewer-text-layer');
   const mdContainer = startEl?.closest<HTMLElement>('[data-annotate="markdown"]');
 
+  // A selection must stay inside one annotatable surface. A drag that escapes the document (e.g.
+  // into the side panel, or across PDF pages) would produce a garbage quote/anchor — ignore it.
+  const surface: Element | null = pdfLayer ?? mdContainer ?? null;
+  if (surface && !surface.contains(range.endContainer)) return null;
+
   if (smooth && (pdfLayer || mdContainer)) {
     if (smoothSelectionRange(range, mdContainer ?? null)) {
       selection.removeAllRanges();

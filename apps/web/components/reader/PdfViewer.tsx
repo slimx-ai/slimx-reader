@@ -6,6 +6,7 @@ import { classifyPdfLoadError, type DocumentError } from '../../lib/documentErro
 import { renderPdfPageOverlay } from './pdfAnnotationOverlay';
 import { PdfSidebar } from './PdfSidebar';
 import { countMatches, findMatchRanges, normalizeForFind } from './pdfFind';
+import { attachTextLayerSelectionGuard } from './pdfTextLayerSelection';
 
 /**
  * Local-first PDF page viewer. Ported from SlimX-AI ControlRoom's PdfViewer.tsx (MIT).
@@ -182,6 +183,8 @@ export function PdfViewer({
       try {
         const tc = await page.getTextContent();
         await new pdfjs.TextLayer({ textContentSource: tc, container: textLayer, viewport }).render();
+        // Stop drag-selection from snapping across paragraphs/the whole page (ported from pdf.js).
+        attachTextLayerSelectionGuard(textLayer);
       } catch {
         /* text layer is best-effort */
       }
