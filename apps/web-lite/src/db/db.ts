@@ -102,6 +102,8 @@ export function newId(): string {
 }
 
 export async function sha256Hex(data: ArrayBuffer): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', data);
+  // Wrap in a view: webcrypto rejects ArrayBuffers from another realm (e.g. jsdom's FileReader
+  // under Node 20), but TypedArray views are accepted everywhere.
+  const digest = await crypto.subtle.digest('SHA-256', new Uint8Array(data));
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
 }
