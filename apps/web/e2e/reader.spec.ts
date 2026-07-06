@@ -92,12 +92,12 @@ test('add a comment via the inline composer and persist it', async ({ page }) =>
     }
   });
 
-  // Comment opens the native in-app composer (no browser prompt).
-  await page.getByRole('button', { name: 'Comment' }).click();
+  // Comment / Ask opens the native in-app composer (no browser prompt); save as a Comment.
+  await page.getByRole('button', { name: 'Comment / Ask' }).click();
   const composer = page.locator('.comment-composer textarea');
   await expect(composer).toBeVisible();
   await composer.fill('a floating note');
-  await page.locator('.comment-composer button.primary-button').click();
+  await page.locator('.comment-composer button.btn-comment').click();
 
   // The comment shows as a gutter pin next to the text…
   await expect(page.locator('.comment-pin')).toHaveCount(1);

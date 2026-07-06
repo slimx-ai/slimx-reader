@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import {
+  askOverDocuments,
   createAnnotation,
   createNote,
   deleteAnnotation,
@@ -57,8 +58,13 @@ export function DocumentReader({ documentId }: { documentId: string }) {
   const [chunkRefreshKey, setChunkRefreshKey] = useState(0);
   // Transient failure notice for actions (delete/save/export) — never takes over the page.
   const [actionError, setActionError] = useState<string | null>(null);
-  // Question seeded into the Ask tab from a text selection or a chunk ("Ask about this").
+  // Question seeded into the Ask tab from a chunk ("Ask about this").
   const [askSeed, setAskSeed] = useState<{ text: string; nonce: number } | null>(null);
+  // Per-annotation progress of anchored asks (ask_anchor): pending while retrieving/answering,
+  // failed with a human-readable reason. Success is durable (a note linked to the annotation).
+  const [askStatus, setAskStatus] = useState<
+    Record<string, { state: 'pending' } | { state: 'failed'; message: string }>
+  >({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -88,26 +94,92 @@ export function DocumentReader({ documentId }: { documentId: string }) {
     void load();
   }, [load]);
 
+  // Run a grounded ask whose question AND answer stay attached to the annotated passage: the
+  // annotation body is the question; the answer is saved as a note linked via annotation_id.
+  const runAnchoredAsk = useCallback(
+    async (ann: Annotation) => {
+      setAskStatus((prev) => ({ ...prev, [ann.id]: { state: 'pending' } }));
+      try {
+        const question = ann.quote
+          ? `${ann.body}\n\nThe question is about this passage:\n"${ann.quote}"`
+          : (ann.body ?? '');
+        const res = await askOverDocuments({
+          question,
+          document_ids: [documentId],
+          top_k: settings?.rag_default_top_k ?? 8,
+          min_score: settings?.rag_min_score ?? 0,
+        });
+        if (!res.answer) {
+          setAskStatus((prev) => ({
+            ...prev,
+            [ann.id]: {
+              state: 'failed',
+              message:
+                res.note ||
+                (res.degraded_reason === 'model_unavailable'
+                  ? 'No local model is available — start Ollama for generated answers.'
+                  : 'No grounded answer was found for this passage.'),
+            },
+          }));
+          return;
+        }
+        const note = await createNote({
+          document_id: documentId,
+          kind: 'explanation',
+          body: res.answer,
+          annotation_id: ann.id,
+          retrieval_run_id: res.run_id,
+        });
+        setNotes((prev) => [note, ...prev]);
+        setAskStatus((prev) => {
+          const next = { ...prev };
+          delete next[ann.id];
+          return next;
+        });
+      } catch (err) {
+        setAskStatus((prev) => ({
+          ...prev,
+          [ann.id]: { state: 'failed', message: classifyUploadError(err).message },
+        }));
+      }
+    },
+    [documentId, settings],
+  );
+
   const handleCreate = useCallback(
     async (payload: AnnotationCreate) => {
       try {
         const created = await createAnnotation(documentId, payload);
         setAnnotations((prev) => [...prev, created]);
+        if (created.type === 'ask_anchor') void runAnchoredAsk(created);
       } catch {
         setActionError('Could not save the annotation. Is the API still running?');
       }
     },
-    [documentId],
+    [documentId, runAnchoredAsk],
   );
 
-  const handleDelete = useCallback(async (id: string) => {
-    try {
-      await deleteAnnotation(id);
-      setAnnotations((prev) => prev.filter((a) => a.id !== id));
-    } catch {
-      setActionError('Could not delete the annotation — it was left in place. Try again.');
-    }
-  }, []);
+  const handleDelete = useCallback(
+    async (id: string) => {
+      try {
+        await deleteAnnotation(id);
+        setAnnotations((prev) => prev.filter((a) => a.id !== id));
+        // Answer notes linked to the annotation would be orphaned (FK is SET NULL) — remove them too.
+        const linked = notes.filter((n) => n.annotation_id === id);
+        for (const n of linked) {
+          try {
+            await deleteNote(n.id);
+            setNotes((prev) => prev.filter((x) => x.id !== n.id));
+          } catch {
+            // Non-fatal: the note stays visible in the Notes tab.
+          }
+        }
+      } catch {
+        setActionError('Could not delete the annotation — it was left in place. Try again.');
+      }
+    },
+    [notes],
+  );
 
   const handleUpdate = useCallback(
     async (id: string, patch: { body?: string; color?: string | null }) => {
@@ -241,6 +313,8 @@ export function DocumentReader({ documentId }: { documentId: string }) {
   }
 
   const isPdf = doc.source_type === 'pdf';
+  const askDisabledReason =
+    doc.indexing_status === 'ready' ? null : 'Index the document first to ask questions.';
 
   return (
     <div className="reader">
@@ -412,9 +486,12 @@ export function DocumentReader({ documentId }: { documentId: string }) {
         </aside>
       </div>
 
-      <SelectionToolbar onCreate={handleCreate} onAsk={handleAskQuote} />
+      <SelectionToolbar onCreate={handleCreate} askDisabledReason={askDisabledReason} />
       <CommentLayer
         annotations={annotations}
+        notes={notes}
+        askStatus={askStatus}
+        askDisabledReason={askDisabledReason}
         onCreate={handleCreate}
         onUpdate={handleUpdate}
         onDelete={handleDelete}

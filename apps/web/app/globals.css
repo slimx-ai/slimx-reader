@@ -9,6 +9,7 @@
   --line: #e2e2dd;
   --accent: #1f7a5c;
   --accent-weak: rgba(31, 122, 92, 0.12);
+  --comment-blue: #2f6fbe;
   --danger: #b4341f;
   --radius: 10px;
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.04);
@@ -25,6 +26,7 @@
     --line: #34343a;
     --accent: #4fbf97;
     --accent-weak: rgba(79, 191, 151, 0.16);
+    --comment-blue: #6ba3e8;
     --danger: #e0684f;
     --shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.3);
     color-scheme: dark;
@@ -657,6 +659,13 @@ mark.annotation-ask {
   justify-content: flex-end;
   gap: 6px;
 }
+/* Comment saves a note (blue); Ask runs a grounded question anchored to the passage (green). */
+.primary-button.btn-comment {
+  background: var(--comment-blue);
+}
+.primary-button.btn-ask {
+  background: var(--accent);
+}
 
 /* --- Floating comment cards / pins (Google-Docs style) --- */
 .comment-pin {
@@ -675,6 +684,26 @@ mark.annotation-ask {
 }
 .comment-pin:hover {
   border-color: var(--accent);
+}
+.comment-pin.ask {
+  border-color: rgba(31, 122, 92, 0.55);
+}
+.comment-card.ask {
+  border-left: 3px solid var(--accent);
+}
+.comment-card-question {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.comment-card-answer {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.comment-card-failed {
+  color: var(--danger);
 }
 .comment-card {
   display: flex;

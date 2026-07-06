@@ -12,19 +12,21 @@ const TOOLBAR_W = 176;
 
 /**
  * A floating toolbar that appears beside a text selection inside the reader surface. It offers a row
- * of highlight colors (click a swatch to highlight in that color), Comment, and Copy. It reads the
- * selection itself (pdf.js text layer or a `data-annotate="markdown"` container) and hands a
- * fully-formed annotation payload to `onCreate`.
+ * of highlight colors (click a swatch to highlight in that color), one Comment/Ask entry, and Copy.
+ * It reads the selection itself (pdf.js text layer or a `data-annotate="markdown"` container) and
+ * hands a fully-formed annotation payload to `onCreate`.
  *
- * Choosing "Comment" swaps the toolbar for an in-app composer (a native textarea, not a browser
- * prompt). While composing, global mouseup/keyup are ignored so the composer stays put.
+ * Comment/Ask opens one composer with two intents: save as a comment, or ask a grounded question
+ * whose Q&A stays anchored to the passage (an `ask_anchor` annotation — the reader runs the ask).
+ * While composing, global mouseup/keyup are ignored so the composer stays put.
  */
 export function SelectionToolbar({
   onCreate,
-  onAsk,
+  askDisabledReason,
 }: {
   onCreate: (payload: AnnotationCreate) => void;
-  onAsk?: (quote: string) => void;
+  /** When set (e.g. document not indexed yet), the composer's Ask is disabled with this tooltip. */
+  askDisabledReason?: string | null;
 }) {
   const [info, setInfo] = useState<SelectionInfo | null>(null);
   const [mode, setMode] = useState<'actions' | 'compose'>('actions');
@@ -87,6 +89,8 @@ export function SelectionToolbar({
         top={cTop}
         left={cLeft}
         onSave={(body) => create('comment', body)}
+        onAsk={(question) => create('ask_anchor', question)}
+        askDisabledReason={askDisabledReason}
         onCancel={dismiss}
       />
     );
@@ -120,21 +124,8 @@ export function SelectionToolbar({
           className="selection-toolbar-button"
           onClick={() => setModeSync('compose')}
         >
-          Comment
+          Comment / Ask
         </button>
-        {onAsk ? (
-          <button
-            type="button"
-            className="selection-toolbar-button"
-            onClick={() => {
-              onAsk(quote);
-              window.getSelection()?.removeAllRanges();
-              dismiss();
-            }}
-          >
-            Ask
-          </button>
-        ) : null}
         <button
           type="button"
           className="selection-toolbar-button"

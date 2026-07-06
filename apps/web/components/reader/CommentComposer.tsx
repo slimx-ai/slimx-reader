@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from 'react';
 
 /**
- * A small in-app comment box (a native textarea, not a browser prompt), positioned at fixed
- * coordinates near the text it annotates. Used both when commenting a fresh selection and when
- * commenting an existing highlight.
+ * The in-app box for annotating a passage (a native textarea, not a browser prompt), positioned at
+ * fixed coordinates near the text. One input, two intents: save the text as a **Comment** (blue), or
+ * — when `onAsk` is provided — send it as a grounded **Ask** (green) whose question and answer stay
+ * attached to the passage.
  */
 export function CommentComposer({
   quote,
@@ -13,6 +14,8 @@ export function CommentComposer({
   left,
   initial = '',
   onSave,
+  onAsk,
+  askDisabledReason,
   onCancel,
 }: {
   quote: string;
@@ -20,6 +23,10 @@ export function CommentComposer({
   left: number;
   initial?: string;
   onSave: (body: string) => void;
+  /** When set, an "Ask" action is offered next to "Comment". */
+  onAsk?: (question: string) => void;
+  /** When set (e.g. document not indexed), the Ask button renders disabled with this tooltip. */
+  askDisabledReason?: string | null;
   onCancel: () => void;
 }) {
   const [draft, setDraft] = useState(initial);
@@ -29,8 +36,8 @@ export function CommentComposer({
     ref.current?.focus();
   }, []);
 
-  const submit = () => {
-    const body = draft.trim();
+  const body = draft.trim();
+  const submitComment = () => {
     if (body) onSave(body);
   };
 
@@ -42,7 +49,7 @@ export function CommentComposer({
         className="comment-composer-input"
         value={draft}
         rows={3}
-        placeholder="Add a comment…  (⌘/Ctrl+Enter to save)"
+        placeholder={onAsk ? 'Comment on — or ask about — this passage…' : 'Add a comment…'}
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Escape') {
@@ -50,7 +57,7 @@ export function CommentComposer({
             onCancel();
           } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
             e.preventDefault();
-            submit();
+            submitComment();
           }
         }}
       />
@@ -58,9 +65,28 @@ export function CommentComposer({
         <button type="button" className="text-button" onClick={onCancel}>
           Cancel
         </button>
-        <button type="button" className="primary-button" disabled={!draft.trim()} onClick={submit}>
+        <button
+          type="button"
+          className="primary-button btn-comment"
+          disabled={!body}
+          title="Save as a comment (⌘/Ctrl+Enter)"
+          onClick={submitComment}
+        >
           Comment
         </button>
+        {onAsk ? (
+          <button
+            type="button"
+            className="primary-button btn-ask"
+            disabled={!body || !!askDisabledReason}
+            title={askDisabledReason ?? 'Ask about this passage — the answer stays attached to it'}
+            onClick={() => {
+              if (body) onAsk(body);
+            }}
+          >
+            Ask
+          </button>
+        ) : null}
       </div>
     </div>
   );

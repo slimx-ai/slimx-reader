@@ -1,16 +1,17 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Annotation, AnnotationCreate } from '../../lib/types';
+import type { Annotation, AnnotationCreate, Note } from '../../lib/types';
 import { HIGHLIGHT_COLORS } from '../../lib/highlightColors';
 import { CommentComposer } from './CommentComposer';
 
-// Width of an expanded comment card; the collapsed pins are much narrower and sit in the gutter.
+// Width of an expanded card; the collapsed pins are much narrower and sit in the gutter.
 const CARD_WIDTH = 288;
 const PIN_STACK_GAP = 6;
 const PIN_HEIGHT = 28;
 const MARK_TOOLBAR_W = 176;
 
+type AskStatus = Record<string, { state: 'pending' } | { state: 'failed'; message: string }>;
 type Placement = { left: number; cardLeft: number; items: Array<{ ann: Annotation; top: number }> };
 type MarkMenu = { ann: Annotation; x: number; y: number };
 type Composing = { source: Annotation; top: number; left: number };
@@ -20,10 +21,11 @@ function firstId(value: string | null | undefined): string | null {
 }
 
 /**
- * Google-Docs-style floating comments plus on-document mark management, replacing the old annotations
- * side panel. Comments render as collapsed pins in the right gutter (aligned to the text they annotate)
- * that expand into a card with edit/delete. Clicking a highlight opens a floating toolbar to recolor,
- * comment on, or delete it.
+ * Google-Docs-style floating annotations beside the text. Comments AND anchored asks render as
+ * collapsed gutter pins (💬 / ❓) that expand into a card: a comment card offers edit/delete; an ask
+ * card shows the question with its grounded answer (the note linked via annotation_id), or the
+ * in-flight/failed state. Clicking a highlight opens a small toolbar to recolor, comment/ask on, or
+ * delete it.
  *
  * Anchoring reuses the `data-annotation-ids` attribute already set on markdown `<mark>`s and PDF
  * overlay boxes. PDF overlay boxes are `pointer-events:none` (so they never block text selection), so
@@ -31,11 +33,17 @@ function firstId(value: string | null | undefined): string | null {
  */
 export function CommentLayer({
   annotations,
+  notes,
+  askStatus,
+  askDisabledReason,
   onCreate,
   onUpdate,
   onDelete,
 }: {
   annotations: Annotation[];
+  notes: Note[];
+  askStatus: AskStatus;
+  askDisabledReason?: string | null;
   onCreate: (payload: AnnotationCreate) => void;
   onUpdate: (id: string, patch: { body?: string; color?: string | null }) => void | Promise<void>;
   onDelete: (id: string) => void | Promise<void>;
@@ -48,8 +56,9 @@ export function CommentLayer({
   const [composing, setComposing] = useState<Composing | null>(null);
   const rafRef = useRef(0);
 
-  const comments = annotations.filter((a) => a.type === 'comment');
-  const commentSignature = comments
+  const pinned = annotations.filter((a) => a.type === 'comment' || a.type === 'ask_anchor');
+  // Stable identity for the measure effect: reruns when the pinned set or anchors change.
+  const pinSignature = pinned
     .map((a) => `${a.id}:${a.start_offset}:${a.end_offset}:${a.pdf_anchor?.rects.length ?? 0}`)
     .join('|');
 
@@ -68,7 +77,7 @@ export function CommentLayer({
     const cardLeft = Math.max(8, Math.min(docRight + 8, canvasRect.right - CARD_WIDTH - 8));
 
     const raw: Array<{ ann: Annotation; top: number }> = [];
-    for (const ann of comments) {
+    for (const ann of pinned) {
       const el = document.querySelector<HTMLElement>(`[data-annotation-ids~="${ann.id}"]`);
       if (!el) continue;
       const r = el.getBoundingClientRect();
@@ -82,9 +91,9 @@ export function CommentLayer({
       prevBottom = item.top + PIN_HEIGHT;
     }
     setPlacement({ left, cardLeft, items: raw });
-    // `comments` is re-derived each render; commentSignature captures the changes that matter.
+    // `pinned` is re-derived each render; pinSignature captures the changes that matter.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [commentSignature]);
+  }, [pinSignature]);
 
   useEffect(() => {
     const schedule = () => {
@@ -107,7 +116,7 @@ export function CommentLayer({
     };
   }, [measure]);
 
-  // Open a comment card / highlight toolbar from a click on the document surface.
+  // Open a card / highlight toolbar from a click on the document surface.
   useEffect(() => {
     const canvas = document.querySelector<HTMLElement>('.reader-canvas');
     if (!canvas) return;
@@ -145,7 +154,7 @@ export function CommentLayer({
       }
       const ann = byId.get(id);
       if (!ann) return;
-      if (ann.type === 'comment') {
+      if (ann.type === 'comment' || ann.type === 'ask_anchor') {
         setActiveId((prev) => (prev === id ? null : id));
         setEditingId(null);
         setMarkMenu(null);
@@ -179,33 +188,65 @@ export function CommentLayer({
   return (
     <div className="comment-layer">
       {placement.items.map(({ ann, top }) => {
+        const isAsk = ann.type === 'ask_anchor';
         const active = ann.id === activeId;
         if (!active) {
           return (
             <button
               key={ann.id}
               type="button"
-              className="comment-pin"
+              className={`comment-pin${isAsk ? ' ask' : ''}`}
               style={{ position: 'fixed', top, left: placement.left, zIndex: 40 }}
-              title={ann.body ?? 'Comment'}
+              title={ann.body ?? (isAsk ? 'Question' : 'Comment')}
               onClick={() => {
                 setActiveId(ann.id);
                 setEditingId(null);
                 setMarkMenu(null);
               }}
             >
-              💬
+              {isAsk ? '❓' : '💬'}
             </button>
           );
         }
+
+        const answerNote = isAsk ? notes.find((n) => n.annotation_id === ann.id) : undefined;
+        const status = askStatus[ann.id];
         return (
           <div
             key={ann.id}
-            className="comment-card"
+            className={`comment-card${isAsk ? ' ask' : ''}`}
             style={{ position: 'fixed', top, left: placement.cardLeft, width: CARD_WIDTH, zIndex: 45 }}
           >
             {ann.quote ? <blockquote className="comment-card-quote">{ann.quote}</blockquote> : null}
-            {editingId === ann.id ? (
+            {isAsk ? (
+              <>
+                <p className="comment-card-question">{ann.body}</p>
+                {answerNote ? (
+                  <p className="comment-card-body comment-card-answer">{answerNote.body}</p>
+                ) : status?.state === 'pending' ? (
+                  <p className="comment-card-body muted">Asking…</p>
+                ) : status?.state === 'failed' ? (
+                  <p className="comment-card-body comment-card-failed">{status.message}</p>
+                ) : (
+                  <p className="comment-card-body muted">No answer was saved for this question.</p>
+                )}
+                <div className="comment-card-actions">
+                  <button type="button" className="text-button" onClick={() => setActiveId(null)}>
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    className="text-button danger"
+                    onClick={() => {
+                      void onDelete(ann.id);
+                      setActiveId(null);
+                    }}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </>
+            ) : editingId === ann.id ? (
               <>
                 <textarea
                   className="comment-card-input"
@@ -301,7 +342,7 @@ export function CommentLayer({
                 setMarkMenu(null);
               }}
             >
-              Comment
+              Comment / Ask
             </button>
             <button
               type="button"
@@ -322,12 +363,27 @@ export function CommentLayer({
           quote={composing.source.quote}
           top={Math.min(composing.top, window.innerHeight - 180)}
           left={Math.max(8, Math.min(composing.left, window.innerWidth - 320))}
+          askDisabledReason={askDisabledReason}
           onSave={(body) => {
             const s = composing.source;
             onCreate({
               type: 'comment',
               quote: s.quote,
               body,
+              color: null,
+              start_offset: s.start_offset,
+              end_offset: s.end_offset,
+              page: s.page,
+              pdf_anchor: s.pdf_anchor,
+            });
+            setComposing(null);
+          }}
+          onAsk={(question) => {
+            const s = composing.source;
+            onCreate({
+              type: 'ask_anchor',
+              quote: s.quote,
+              body: question,
               color: null,
               start_offset: s.start_offset,
               end_offset: s.end_offset,
